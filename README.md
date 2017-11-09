@@ -2,9 +2,10 @@
 http://ece353.ecs.umass.edu/2017lab3/2017lab3.pdf
 
 -----------------------InputProcess--------------------
-char *progScanner(...)  
-char *regNumberConverter(...)
-struct inst parser(...)
+progScanner()
+regNumberConverter
+inst parser
+
 ----------------------Stages--------------------
 
 
