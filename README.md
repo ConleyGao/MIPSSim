@@ -1,6 +1,6 @@
 # MIPSSim
 http://ece353.ecs.umass.edu/2017lab3/2017lab3.pdf
-!!! The code available via the code1.c link should be used at the start of your program.
+(!!!!) The code available via the code1.c link should be used at the start of your program.
 Your code (including variable names) should be consistent with this.
 • Code available via the code2.c link should be added to the simulation of every
 cycle. This will output the register value to the screen at every cycle and wait for
