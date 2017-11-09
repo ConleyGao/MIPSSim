@@ -1,6 +1,26 @@
 #include <stdio.h>
 
+/**********Global variables **********************/
+
+
+/**********************InputProcess************************/
+
+char *progScanner(...)
+char *regNumberConverter(...)
+struct inst parser(...)
+
+
+/********************Stages************************/
+
+
+void IF(...)
+void ID(...)
+void EX(..)
+void MEM(...)
+void WB(...)
+
+/********************Main************************/
 int main() {
-    printf("Hello, World!\n");
-    return 0;
+//TODO
+
 }
