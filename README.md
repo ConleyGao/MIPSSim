@@ -24,10 +24,10 @@ void ID(...)
 
 void EX(..)
 
-void MEM(...) <-------Todd, finished, not test 
+void MEM(...) <-------Todd, finished, testing  
 
-void WB(...)  <-------Todd, working 
+void WB(...)  <-------Todd, finished, testing 
 
 --------------------Main--------------------
 
-int main()
+int main() <------ Partially done by Todd, MEM and WB related part, testing 
