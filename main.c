@@ -11,11 +11,11 @@
 #define REG_NUM 32
 
 /**********Global variables **********************/
-
+enum opcode{add, sub, mul, addi, beq, lw, sw};
 int lwresult;//temp that store lw result
 ///////////////////Structs/////////////////////////
 typedef struct {
-    int op;//op code
+    enum opcode op;//op code
     int dest;//destination register
     int s1;// source 1, piority, $s, $s1
     int s2;// source 2, Or $t!
