@@ -23,15 +23,20 @@ typedef struct {
 
 typedef struct {
     int validBit;//0 if latch not ready, 1 if ready, reset after use
+    int PC;//where is PC now 
     inst operation;//op that needs to be passed
     int EXresult;//ex stage result in to store or do stuff
 }latch;//latch between stages
 
 /////////////////////Flags/////////////////////////
 
-int IFflag;
-int IDflag;
-int EXflag;
+int memTime;//how many cycle MEM need, give by I/P
+
+
+
+int IFflag;//IF ready?
+int IDflag;//ID ready?
+int EXflag;//EX ready?
 int MEMflag;//MEM ready?(1 ready for next inst)
 int WBflag;//WB ready?
 
