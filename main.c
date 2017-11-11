@@ -18,7 +18,7 @@ typedef struct {
     int s1;// source 1, piority, $s, $s1
     int s2;// source 2, Or $t!
     int im;//immediate value
-
+    int mtime=0;
 }inst;  // instruction set
 
 typedef struct {
@@ -88,24 +88,17 @@ void SW(int saveAddress,int data){
  * next stage, if LW or SW then wait c cycles;
  */
 void MEM(inst memOp){
-    Mtime++;
+    memOp.mtime++;
     if(memOp.op==0b100011){//if LW, 0b100011
         int accessAdd=memOp.s1+memOp.im;//accessing address
         memOp.dest=LW(accessAdd);//reading data to dest
-        if(Mtime==c){//time's UP
-            Mtime=0;
-            MEMflag=1;
-        }
+
     }else if(memOp.op==0b101011){//if SW, 0b101011
         int accessAdd=memOp.s1+memOp.im;//accessing address
         SW(accessAdd,memOp.s2);
-        if(Mtime==c){//time's UP
-            Mtime=0;
-            MEMflag=1;
-        }
+
     }else{//NOT LW or SW, just next stage
-        Mtime=0;
-        MEMflag=1;//ready!
+       printf("I shouldn't be here, MEM stage error, MEMinst is not LW or SW");//throw error
     }
 
 
@@ -129,12 +122,15 @@ int main() {
 
     latch MEMlatch;//latch to MEM
     latch WBlatch;//latch to WB
-
+    latch NMWBlatch;//for those who are not MEM op
 
     inst MEMinst;
     inst WBinst;
+    inst realMEM[c];//true mem op array
+    int MEMempty=0;//empty slot pointer
+    int MEMtop=0;
 ///////////////////////////////////////////
-    while(foo) {
+    while(foo) {//test while loop
 
         /*
          * MEM stage
@@ -145,14 +141,35 @@ int main() {
             MEMPC=MEMlatch.PC;
             MEMexResult=MEMlatch.EXresult;
         }
-        MEM(MEMinst);
-        if(MEMflag && !(WBlatch.validBit)){//if MEM finished & WBlatch ready
-            MEMflag=0;
-            WBlatch.operation=MEMinst;
-            WBlatch.EXresult=MEMexResult;
-            WBlatch.PC=MEMPC;
-            WBlatch.validBit=1;
+        if(!((MEMinst.op==0b101011)||(MEMinst.op==0b100011))){//NOT LW or SW, just move on
+            /***********seting NOMEM latch************/
+            MEMflag=1;
+            NMWBlatch.operation=MEMinst;
+            NMWBlatch.EXresult=MEMexResult;
+            NMWBlatch.PC=MEMPC;
+            NMWBlatch.validBit=1;
+        }else{
+            realMEM[MEMempty]=MEMinst;//insert into the real mem arrya
+            MEMempty++;
+            if(MEMempty=c){MEMempty=0;}//reset
         }
+        for(int i=0; i < c; i++){//for each
+          if(realMEM[i].op!=0){//if op valid
+            MEM(realMEM[i]);
+              if((realMEM[i].mtime==c)&&!(WBlatch.validBit)){//if this inst is finished, then pass on
+                  MEMflag=1;
+                  WBlatch.operation=MEMinst;
+                  WBlatch.EXresult=MEMexResult;
+                  WBlatch.PC=MEMPC;
+                  WBlatch.validBit=1;
+                  realMEM[i].op=0;//invalid this element
+                  MEMtop++;
+                  if(MEMtop=c){MEMtop=0;}//reset memtop
+              }
+          }
+
+        }
+
 
 
 
