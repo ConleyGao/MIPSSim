@@ -11,6 +11,7 @@
 #define REG_NUM 32
 
 /**********Global variables **********************/
+///////////////////Structs/////////////////////////
 typedef struct {
     int op;//op code
     int dest;//destination register
@@ -25,6 +26,20 @@ typedef struct {
     inst operation;//op that needs to be passed
     int EXresult;//ex stage result in to store or do stuff
 }latch;//latch between stages
+
+/////////////////////Flags/////////////////////////
+
+int IFflag;
+int IDflag;
+int EXflag;
+int MEMflag;//MEM ready?(1 ready for next inst)
+int WBflag;//WB ready?
+
+
+
+
+
+
 /**********************InputProcess************************/
 
 char *progScanner(FILE *ipf, char * istbuff ){
@@ -45,8 +60,27 @@ struct inst parser(...);
 void IF(...){}
 void ID(...){}
 void EX(...){}
-void MEM(...){}
+//void MEM(...){} <-----------Todd
 void WB(...){}
+
+
+
+
+
+
+////********************Todd**********************////
+void MEM(){
+
+
+
+    return;//dummy return
+}
+
+
+
+
+
+
 
 /********************Main************************/
 int main() {
