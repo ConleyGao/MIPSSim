@@ -11,6 +11,8 @@
 #define REG_NUM 32
 
 /**********Global variables **********************/
+
+int lwresult;//temp that store lw result
 ///////////////////Structs/////////////////////////
 typedef struct {
     int op;//op code
@@ -45,6 +47,9 @@ int WBflag;//WB ready?
 
 int Mtime;//where is MEM at
 
+////////////////////Registers///////////////////////////
+int reg[32];
+int datamemory[2000];
 
 /**********************InputProcess************************/
 
@@ -67,17 +72,16 @@ void IF(...){}
 void ID(...){}
 void EX(...){}
 //void MEM(...){} <-----------Todd
-void WB(...){}
+//void WB(...){}
 
 /*****************Support Functions***************/
 
 int LW(int address){
-   //TODO
-    return -1;
+    return datamemory[address];
 }
 
 void SW(int saveAddress,int data){
-    //TODO
+    datamemory[saveAddress]=data;
     return;
 }
 
@@ -89,16 +93,16 @@ void SW(int saveAddress,int data){
  */
 void MEM(inst memOp){
     memOp.mtime++;
-    if(memOp.op==0b100011){//if LW, 0b100011
-        int accessAdd=memOp.s1+memOp.im;//accessing address
-        memOp.dest=LW(accessAdd);//reading data to dest
+    if(memOp.op==lw){//if LW, 0b100011
+        int accessAdd=reg[memOp.s1]+memOp.im;//accessing address
+        lwresult=LW(accessAdd);//reading data to dest
 
-    }else if(memOp.op==0b101011){//if SW, 0b101011
-        int accessAdd=memOp.s1+memOp.im;//accessing address
-        SW(accessAdd,memOp.s2);
+    }else if(memOp.op==sw){//if SW, 0b101011
+        int accessAdd=reg[memOp.s1]+memOp.im;//accessing address
+        SW(accessAdd,reg[memOp.s2]);
 
     }else{//NOT LW or SW, just next stage
-       printf("I shouldn't be here, MEM stage error, MEMinst is not LW or SW");//throw error
+        //nothing
     }
 
 
@@ -106,7 +110,15 @@ void MEM(inst memOp){
 }
 
 
-
+void WB(inst wbOp, int data){
+    if((wbOp.op==add)||(wbOp.op==sub)||(wbOp.op==mul)){//storing to $d(dest)
+        reg[wbOp.dest]=data;
+    }
+    else if((wbOp.op==addi)||(wbOp.op==lw)){//storing to $t(s2)
+        reg[wbOp.s2]=data;
+    }
+    return;
+}
 
 
 
@@ -116,7 +128,9 @@ int main() {
 
     int foo=1;//loop check
     int MEMPC;//MEM PC store
+    int WBPC;
     int MEMexResult;//MEM EX result
+    int WBvalue;
 
     Mtime=0;
 
@@ -133,6 +147,19 @@ int main() {
     while(foo) {//test while loop
 
         /*
+         * WB stage
+         */
+        if (WBlatch.validBit) {//if valid, download info
+            WBinst = MEMlatch.operation;//passing inst
+            WBlatch.validBit = 0;//reset valid
+            WBPC=MEMlatch.PC;
+            WBvalue=MEMlatch.EXresult;
+        }
+        WB(WBinst,WBvalue);//store and this is the end of the inst
+
+
+
+        /*
          * MEM stage
          */
         if (MEMlatch.validBit) {//if valid, download info
@@ -141,20 +168,12 @@ int main() {
             MEMPC=MEMlatch.PC;
             MEMexResult=MEMlatch.EXresult;
         }
-        if(!((MEMinst.op==0b101011)||(MEMinst.op==0b100011))){//NOT LW or SW, just move on
-            /***********seting NOMEM latch************/
-            MEMflag=1;
-            NMWBlatch.operation=MEMinst;
-            NMWBlatch.EXresult=MEMexResult;
-            NMWBlatch.PC=MEMPC;
-            NMWBlatch.validBit=1;
-        }else{
-            realMEM[MEMempty]=MEMinst;//insert into the real mem arrya
+            realMEM[MEMempty]=MEMinst;//insert into the array
             MEMempty++;
             if(MEMempty=c){MEMempty=0;}//reset
-        }
+
         for(int i=0; i < c; i++){//for each
-          if(realMEM[i].op!=0){//if op valid
+          if(realMEM[i].op!=999){//if op valid
             MEM(realMEM[i]);
               if((realMEM[i].mtime==c)&&!(WBlatch.validBit)){//if this inst is finished, then pass on
                   MEMflag=1;
@@ -162,7 +181,7 @@ int main() {
                   WBlatch.EXresult=MEMexResult;
                   WBlatch.PC=MEMPC;
                   WBlatch.validBit=1;
-                  realMEM[i].op=0;//invalid this element
+                  realMEM[i].op=999;//invalid this element
                   MEMtop++;
                   if(MEMtop=c){MEMtop=0;}//reset memtop
               }
