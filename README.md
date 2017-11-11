@@ -24,9 +24,9 @@ void ID(...)
 
 void EX(..)
 
-void MEM(...) <--------Todd, working
+void MEM(...) <-------Todd, finished, not test 
 
-void WB(...)
+void WB(...)  <-------Todd, working 
 
 --------------------Main--------------------
 
