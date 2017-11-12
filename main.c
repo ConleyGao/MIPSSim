@@ -17,14 +17,7 @@ int lwresult;//temp that store lw result
 
 
 enum opcode{add, sub, mul, addi, beq, lw, sw, haltSimulation};
-typedef struct{
-    enum opcode op;
-    int dest;
-    int s1;
-    int s2;
-    int im;
-} inst;
-inst* imem;
+
 
 ///////////////////Structs/////////////////////////
 typedef struct {
@@ -35,17 +28,13 @@ typedef struct {
     int im;//immediate value
     int mtime;
 }inst;  // instruction set
+inst* imem;
 
 typedef struct {
     int validBit;//0 if latch not ready, 1 if ready, reset after use
     int PC;//where is PC now
     inst operation;//op that needs to be passed
 
-    int EXresult;//ex stage result in to store or do stuff
-}latch;//latch between stages
-
-
-    int data;// data that need to be passed
     int EXresult;//ex stage result in to store or do stuff
 }latch;//latch between stages
 
@@ -383,7 +372,7 @@ inst parser(char *instruction){
 //void EX(...){}
 //void MEM(...){} <-----------Todd
 //void WB(...){}
-
+/*
 void IF(){
     if(Branchflag == 0) {
         if(ifid.validBit == 0){
@@ -396,6 +385,7 @@ void IF(){
     }
 
 }
+*/
 int dataHazard(){
     latch inst = {.operation = ifid.operation};
         if( inst.operation.s1 == idex.operation.dest && idex.operation.op != sw){
@@ -485,8 +475,7 @@ void EX(void){
 
 
 }
-void MEM(...){}
-void WB(...){}
+
 
 
 /*****************Support Functions***************/
