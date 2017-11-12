@@ -13,6 +13,8 @@
 /**********Global variables **********************/
 enum opcode{add, sub, mul, addi, beq, lw, sw};
 int lwresult;//temp that store lw result
+
+
 ///////////////////Structs/////////////////////////
 typedef struct {
     enum opcode op;//op code
@@ -20,7 +22,7 @@ typedef struct {
     int s1;// source 1, piority, $s, $s1
     int s2;// source 2, Or $t!
     int im;//immediate value
-    int mtime=0;
+    int mtime;
 }inst;  // instruction set
 
 typedef struct {
@@ -33,6 +35,9 @@ typedef struct {
 /////////////////////Flags/////////////////////////
 
 int c;//how many cycle MEM need, give by I/P
+inst* iMem;
+int* reg;
+int* dMem;
 
 
 
@@ -41,6 +46,7 @@ int IDflag;//ID ready?
 int EXflag;//EX ready?
 int MEMflag;//MEM ready?(1 ready for next inst)
 int WBflag;//WB ready?
+int Branchflag;//beq flag
 
 
 ////////////////////stage counters/////////////////////
@@ -48,46 +54,58 @@ int WBflag;//WB ready?
 int Mtime;//where is MEM at
 
 ////////////////////Registers///////////////////////////
-int reg[32];
-int datamemory[2000];
+
 
 /**********************InputProcess************************/
-
+/*
 char *progScanner(FILE *ipf, char * istbuff ){
     while (fgets(istbuff, 75, ipf))
         printf("String input is %s \n", istbuff);
 }
 
-char *regNumberConverter(...)
-struct inst parser(...)
+char *regNumberConverter(...);
+struct inst parser(...);
 char *progScanner(...);
 char *regNumberConverter(...);
 struct inst parser(...);
-
+*/
 
 /********************Stages************************/
 
 
-void IF(...){}
-void ID(...){}
-void EX(...){}
+//void IF(...){}
+//void ID(...){}
+//void EX(...){}
 //void MEM(...){} <-----------Todd
 //void WB(...){}
 
 /*****************Support Functions***************/
 
 int LW(int address){
-    return datamemory[address];
+    return dMem[address];
 }
 
 void SW(int saveAddress,int data){
-    datamemory[saveAddress]=data;
+    dMem[saveAddress]=data;
     return;
 }
 
 
 
 ////********************Todd**********************////
+
+void IF(inst ifOp){
+    if(ifOp.op==beq){//if brach, then no op before this pass EX
+        Branchflag=1;//branch is here
+    }
+    return;
+}
+
+
+
+
+
+
 /* if not LW or SW, then just skip MEM and move on to
  * next stage, if LW or SW then wait c cycles;
  */
@@ -126,23 +144,35 @@ void WB(inst wbOp, int data){
 /********************Main************************/
 int main() {
 
-    int foo=1;//loop check
-    int MEMPC;//MEM PC store
-    int WBPC;
+    dMem=(int *)malloc(sizeof(int)*512);
+    iMem=(inst *)malloc(512* sizeof(inst));
+    reg=(int *)malloc(32* sizeof(int));
+    reg[0]=0;//cant change
+
+    int MEMPC;//MEM PC pointer
+    int WBPC;//WB PC pointer
     int MEMexResult;//MEM EX result
     int WBvalue;
+    int IFPC=0;//IF PC pointer
 
     Mtime=0;
 
     latch MEMlatch;//latch to MEM
     latch WBlatch;//latch to WB
     latch NMWBlatch;//for those who are not MEM op
+    latch IFIDlatch;//latch to ID
 
     inst MEMinst;
     inst WBinst;
+    inst IFinst;
     inst realMEM[c];//true mem op array
     int MEMempty=0;//empty slot pointer
     int MEMtop=0;
+/*******************Testing use variables***************************/
+    int foo=1;//loop check
+    c=4;
+
+
 ///////////////////////////////////////////
     while(foo) {//test while loop
 
@@ -152,10 +182,10 @@ int main() {
         if (WBlatch.validBit) {//if valid, download info
             WBinst = MEMlatch.operation;//passing inst
             WBlatch.validBit = 0;//reset valid
-            WBPC=MEMlatch.PC;
-            WBvalue=MEMlatch.EXresult;
+            WBPC = MEMlatch.PC;
+            WBvalue = MEMlatch.EXresult;
         }
-        WB(WBinst,WBvalue);//store and this is the end of the inst
+        WB(WBinst, WBvalue);//store and this is the end of the inst
 
 
 
@@ -165,31 +195,55 @@ int main() {
         if (MEMlatch.validBit) {//if valid, download info
             MEMinst = MEMlatch.operation;//passing inst
             MEMlatch.validBit = 0;//reset valid
-            MEMPC=MEMlatch.PC;
-            MEMexResult=MEMlatch.EXresult;
+            MEMPC = MEMlatch.PC;
+            MEMexResult = MEMlatch.EXresult;
+            MEMinst.mtime = 0;//initialize mtime
         }
-            realMEM[MEMempty]=MEMinst;//insert into the array
-            MEMempty++;
-            if(MEMempty=c){MEMempty=0;}//reset
+        realMEM[MEMempty] = MEMinst;//insert into the array
+        MEMempty++;
+        if (MEMempty = c) { MEMempty = 0; }//reset
 
-        for(int i=0; i < c; i++){//for each
-          if(realMEM[i].op!=999){//if op valid
-            MEM(realMEM[i]);
-              if((realMEM[i].mtime==c)&&!(WBlatch.validBit)){//if this inst is finished, then pass on
-                  MEMflag=1;
-                  WBlatch.operation=MEMinst;
-                  WBlatch.EXresult=MEMexResult;
-                  WBlatch.PC=MEMPC;
-                  WBlatch.validBit=1;
-                  realMEM[i].op=999;//invalid this element
-                  MEMtop++;
-                  if(MEMtop=c){MEMtop=0;}//reset memtop
-              }
-          }
+        for (int i = 0; i < c; i++) {//for each
+            if (realMEM[i].op != 999) {//if op valid
+                MEM(realMEM[i]);
+                if ((realMEM[i].mtime == c) && !(WBlatch.validBit)) {//if this inst is finished, then pass on
+                    MEMflag = 1;
+                    WBlatch.operation = MEMinst;
+                    WBlatch.EXresult = MEMexResult;
+                    WBlatch.PC = MEMPC;
+                    WBlatch.validBit = 1;
+                    realMEM[i].op = 999;//invalid this element
+                    MEMtop++;
+                    if (MEMtop = c) { MEMtop = 0; }//reset memtop
+                }
+            }
 
         }
 
+        /*
+         *
+         *
+         * All the other stages
+         *
+         *
+         *
+         */
 
+
+        /*
+         * IF stage
+         */
+        if (!Branchflag){//if branchflag is not set, then read next
+            IFinst = iMem[IFPC];
+            IFIDlatch.validBit=1;
+            IFIDlatch.PC=IFPC;
+            IFIDlatch.operation=IFinst;
+            IFPC++;
+        }else{//if branchflag is set, nop
+            IFIDlatch.validBit=0;//just in case, disable this latch
+        }
+
+        IF(IFinst);//this will set the branchflag
 
 
     }
