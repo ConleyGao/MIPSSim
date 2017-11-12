@@ -1,4 +1,5 @@
 // List the full names of ALL group members at the top of your code.
+// Group Members: Gongtao Yang,
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +11,11 @@
 #define REG_NUM 32
 
 /**********Global variables **********************/
+
+enum opcode{add, sub, mul, addi, beq, lw, sw};
+int lwresult;//temp that store lw result
+
+
 enum opcode{add, sub, mul, addi, beq, lw, sw, haltSimulation};
 typedef struct{
     enum opcode op;
@@ -18,6 +24,7 @@ typedef struct{
     int s2;
     int im;
 } inst;
+
 
 ///////////////////Structs/////////////////////////
 typedef struct {
@@ -33,6 +40,11 @@ typedef struct {
     int validBit;//0 if latch not ready, 1 if ready, reset after use
     int PC;//where is PC now
     inst operation;//op that needs to be passed
+
+    int EXresult;//ex stage result in to store or do stuff
+}latch;//latch between stages
+
+
     int data;// data that need to be passed
     int EXresult;//ex stage result in to store or do stuff
 }latch;//latch between stages
@@ -47,15 +59,21 @@ latch ifid = { .validBit = 0 };
 latch idex = { .validBit = 0 };
 datalatch exdata = { .validBit = 0};
 datalatch memdata = { .validBit = 0};
+
 /////////////////////Flags/////////////////////////
 
 int c;//how many cycle MEM need, give by I/P
 inst* iMem;
 int* reg;
 int* dMem;
+
+
+
+
 int program_counter = 0;
 int registers[32];
 inst instructions[512];
+
 
 int IFflag;//IF ready?
 int IDflag;//ID ready?
@@ -63,6 +81,22 @@ int EXflag;//EX ready?
 int MEMflag;//MEM ready?(1 ready for next inst)
 int WBflag;//WB ready?
 int Branchflag;//beq flag
+
+
+
+////////////////////stage counters/////////////////////
+
+int Mtime;//where is MEM at
+
+////////////////////Registers///////////////////////////
+
+
+/**********************InputProcess************************/
+/*
+char *progScanner(FILE *ipf, char * istbuff ){
+    while (fgets(istbuff, 75, ipf))
+        printf("String input is %s \n", istbuff);
+
 /**********************InputProcess************************/
 //check matching "()"
 int Pcheck ( char * ist){
@@ -115,6 +149,7 @@ char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
         return instruction;
     }
     else return NULL;
+
 }
 //take a parsed string from progScanner and replace $registor with $number
 // check if registor is valid , return string with converted reg number
@@ -237,6 +272,7 @@ char *regNumberConverter(char * instruction){
             strcat(instruction,token);
         }
 
+
         token = strtok(NULL," \r\n" );
     }
     free(ist);
@@ -338,9 +374,13 @@ inst parser(char *instruction){
     free(op);free(s1);free(s2);free(s3);
 }
 
+
 /********************Stages************************/
 
 
+
+
+/*
 void IF(){
     if(Branchflag == 0) {
         if (ifid.validBit == 0) {
@@ -413,13 +453,13 @@ void EX(void){
             assert(!"Invalid register location");
         }
         if (idex.operation.op == add) {
-            exdata.data = registers[idex.operation.s1] + registers[idex.operation.s2];
+            exdata.EXresult = registers[idex.operation.s1] + registers[idex.operation.s2];
         } else if (idex.operation.op == addi) {
-            exdata.data = registers[idex.operation.s1] + idex.operation.im;
+            exdata.EXresult = registers[idex.operation.s1] + idex.operation.im;
         } else if (idex.operation.op == sub) {
-            exdata.data = registers[idex.operation.s1] - registers[idex.operation.s2];
+            exdata.EXresult = registers[idex.operation.s1] - registers[idex.operation.s2];
         } else if (idex.operation.op == mul) {
-            exdata.data = registers[idex.operation.s1] * registers[idex.operation.s2];
+            exdata.EXresult = registers[idex.operation.s1] * registers[idex.operation.s2];
         } else if (idex.operation.op == beq) {
             if (registers[idex.operation.s1] == registers[idex.operation.s2]) {
                 program_counter = program_counter + idex.operation.im;
@@ -428,7 +468,7 @@ void EX(void){
             Branchflag = 0;
         } else if (idex.operation.op == lw || idex.operation.op == sw) {
             if (idex.operation.im % 4 == 0) {
-                exdata.data = registers[idex.operation.s2];
+                exdata.EXresult = registers[idex.operation.s2];
                 exdata.operation.dest = registers[idex.operation.s1] + idex.operation.im / 4;
             } else {
                 assert(!"Misaligned memory access");
@@ -443,7 +483,7 @@ void EX(void){
     }
 
 
-
+}
 void MEM(...){}
 void WB(...){}
 
@@ -466,6 +506,9 @@ void SW(int saveAddress,int data){
 void IF(inst ifOp){
     if(ifOp.op==beq){//if brach, then no op before this pass EX
         Branchflag=1;//branch is here
+    }
+    else(ifOp.op==haltSimulation){//if this the end
+        EOIflag=1;
     }
     return;
 }
@@ -568,10 +611,12 @@ int main (int argc, char *argv[]){
             mips_reg[i]=0;
         }
     }
+
+    //start your code from here
     dMem=(int *)malloc(sizeof(int)*512);
     iMem=(inst *)malloc(512* sizeof(inst));
     reg=(int *)malloc(32* sizeof(int));
-    reg[0]=0;//cant change
+//    reg[0]=0;//cant change
 
     int MEMPC;//MEM PC pointer
     int WBPC;//WB PC pointer
@@ -586,18 +631,30 @@ int main (int argc, char *argv[]){
     latch NMWBlatch;//for those who are not MEM op
     latch IFIDlatch;//latch to ID
 
+    c=6;
     inst MEMinst;
     inst WBinst;
     inst IFinst;
     inst realMEM[c];//true mem op array
     int MEMempty=0;//empty slot pointer
     int MEMtop=0;
-/*******************Testing use variables***************************/
+
+
+    //store instruction to instruction memory
+    iMem = malloc(512*sizeof(inst));
+    char *instruction = (char *) malloc(100*sizeof(char));
+    i = 0;
+    while( iMem[i].op!=haltSimulation){
+        progScanner(input,instruction);
+        regNumberConverter(instruction);
+        iMem[i] = parser(instruction);
+        printf( "---- %d--%d--%d--%d--%d\n",iMem[i].op,iMem[i].dest,iMem[i].im,iMem[i].s1,iMem[i].s2);
+        i++;
+    }
+    //////////// main loop
     int foo=1;//loop check
     c=4;
 
-
-    //start your code from here
 
 ///////////////////////////////////////////
     while(foo) {//test while loop
@@ -618,6 +675,7 @@ int main (int argc, char *argv[]){
         /*
          * MEM stage
          */
+        MEMlatch=memdata;
         if (MEMlatch.validBit) {//if valid, download info
             MEMinst = MEMlatch.operation;//passing inst
             MEMlatch.validBit = 0;//reset valid
@@ -669,10 +727,44 @@ int main (int argc, char *argv[]){
             IFIDlatch.validBit=0;//just in case, disable this latch
         }
 
+
         IF(IFinst);//this will set the branchflag
+        if(!EOIflag){//if not end of instruction
+            IFIDlatch.PC=IFPC;
+            IFIDlatch.operation=IFinst;
+            IFPC++;
+        }else{
+            IFIDlatch.validBit=0;//disable IFID latch
+        }
+        ifid=IFIDlatch;
+        ifUtil++;
 
 
 
+        /**********************end*****************************/
+        if((IFIDlatch.validBit)||(idex.validBit)||(MEMlatch.validBit)||(WBlatch.validBit)||!(EOIflag)){
+            foo=0;//iff all latches disabled, and eoi flag up, then end the loop
+        }
+
+
+        ////////////////////////////////////////////////////////
+        /*********************code 2***************************/
+        printf("cycle: %d ",sim_cycle);
+        if(sim_mode==1){
+            for (i=1;i<REG_NUM;i++){
+                printf("%d  ",mips_reg[i]);
+            }
+        }
+        printf("%d\n",pgm_c);
+        pgm_c+=4;
+        sim_cycle+=1;
+        test_counter++;
+        printf("press ENTER to continue\n");
+        while(getchar() != '\n');
+    if(sim_cycle=10){
+        foo=0;
+    }
+    }
 
     //add the following code to the end of the simulation,
     //to output statistics in batch mode
