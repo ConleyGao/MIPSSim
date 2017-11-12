@@ -64,16 +64,19 @@ int MEMflag;//MEM ready?(1 ready for next inst)
 int WBflag;//WB ready?
 int Branchflag;//beq flag
 /**********************InputProcess************************/
+//check matching "()"
 int Pcheck ( char * ist){
     int lcount =0;
     int rcount =0;
     char *tmp1 = ist;
     char * tmp2 = ist;
+    //count "("
     while(tmp1 = strstr(tmp1, "("))
     {
         lcount++;
         tmp1++;
     }
+    //count ")"
     while(tmp2 = strstr(tmp2, ")"))
     {
         rcount++;
@@ -82,6 +85,8 @@ int Pcheck ( char * ist){
     if (lcount == rcount) return 1;
     else return 0;
 }
+//get lines from intputfile, check parentheses , remove extra space and ,
+//return a parsed string
 char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
     char ist[100];  //= (char *) malloc(100*sizeof(char));
     char *token;
@@ -111,6 +116,8 @@ char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
     }
     else return NULL;
 }
+//take a parsed string from progScanner and replace $registor with $number
+// check if registor is valid , return string with converted reg number
 char *regNumberConverter(char * instruction){
     char *token;
     char *ist = (char *) malloc(100*sizeof(char));
@@ -235,6 +242,7 @@ char *regNumberConverter(char * instruction){
     free(ist);
     return instruction;
 }
+// check format , make a structure based on type of format , return it
 inst parser(char *instruction){
     inst ninst ={add,0,0,0,0};
     char *type = "?";
@@ -246,8 +254,8 @@ inst parser(char *instruction){
     s1 =strtok (NULL, " ");
     s2 =strtok (NULL, " ");
     s3 =strtok (NULL, " \r\n");
-
-    if(strcmp(op,"add")==0){			//Compares the first field against the valid opcodes to get type and store the appropriate number
+// check format
+    if(strcmp(op,"add")==0){
         //trcpy(instruction,"add");
         type ="R";
         ninst.op = add;
@@ -280,14 +288,14 @@ inst parser(char *instruction){
         //strcpy(instruction,"haltSimulation");
         ninst.op = haltSimulation;
     }
-
+// create struct base on type
     switch(*type){
 
         case '?':
             printf("Illegal opcode %s\n",op);
             exit(1);
         case 'R':
-            if (strstr(s1,"$")==NULL||strstr(s2,"$")==NULL||strstr(s3,"$")==NULL){
+            if (strstr(s1,"$")==NULL||strstr(s2,"$")==NULL||strstr(s3,"$")==NULL){  // check registor has $
                 printf("register no $");
                 exit(1);
             }
@@ -296,11 +304,11 @@ inst parser(char *instruction){
             ninst.s2 = strtol(strtok(s3,"$"),NULL,10);
             return ninst;
         case 'I':
-            if (strstr(s1,"$")==NULL||strstr(s2,"$")==NULL){
+            if (strstr(s1,"$")==NULL||strstr(s2,"$")==NULL){// check registor has $
                 printf("register no $\n");
                 exit(1);
             }
-            else if(atoi(s3)>=65536){
+            else if(atoi(s3)>=65536){                        //check valid im
                 printf("invalid im\n");
                 exit(1);
             }
@@ -309,11 +317,11 @@ inst parser(char *instruction){
             ninst.im = strtol(strtok(s3,"$"),NULL,10);
             return ninst;
         case 'M':
-            if (strstr(s1,"$")==NULL||strstr(s3,"$")==NULL){
+            if (strstr(s1,"$")==NULL||strstr(s3,"$")==NULL){// check registor has $
                 printf("register no $\n");
                 exit(1);
             }
-            else if(atoi(s2)%4!=0||atoi(s2)>=65536){
+            else if(atoi(s2)%4!=0||atoi(s2)>=65536){//check valid im and proper memory address
                 printf("invalid im\n");
                 exit(1);
             }
