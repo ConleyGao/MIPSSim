@@ -46,15 +46,16 @@ typedef struct {
 latch ifid = { .validBit = 0 };
 latch idex = { .validBit = 0 };
 datalatch exdata = { .validBit = 0};
-
+datalatch memdata = { .validBit = 0};
 /////////////////////Flags/////////////////////////
 
 int c;//how many cycle MEM need, give by I/P
 inst* iMem;
 int* reg;
 int* dMem;
-
-
+int program_counter = 0;
+int registers[32];
+inst instructions[512];
 
 int IFflag;//IF ready?
 int IDflag;//ID ready?
@@ -336,7 +337,7 @@ void IF(){
     if(Branchflag == 0) {
         if(ifid.validBit == 0){
             ifid.validBit = 1 ;
-            ifid.operation = ; // fetch from the instruction memory( need to konow where we are PCcounter)
+            ifid.operation = instructions[program_counter] ; // fetch from the instruction memory( need to konow where we are PCcounter)
         }
      else{
             //do nothing nop
@@ -344,11 +345,56 @@ void IF(){
     }
 
 }
+int dataHazard(){
+    latch inst = {.operation = ifid.operation};
+        if( inst.operation.s1 == idex.operation.dest && idex.operation.op != sw){
+            if(inst.operation.s1 != 0){
+                return inst.operation.s1;
+            }
+        }
+        if(inst.operation.s1 == exdata.operation.dest && exdata.operation.op != sw){
+            if(inst.operation.s1 != 0){
+                return inst.operation.s1;
+            }
+        }
+        if( inst.operation.s1 == memdata.operation.dest && memdata.operation.op != sw){
+            if(inst.operation.s1 != 0){
+                return inst.operation.s1;
+            }
+        }
+        if(inst.operation.op == add && inst.operation.op == addi &&inst.operation.op == mul|| inst.operation.op == beq){
+            //Need to check that rs and rt aren't targets of future ops
+            if(inst.operation.s2 == idex.operation.dest && idex.operation.op != sw){
+                if(inst.operation.s1 != 0){
+                    return inst.operation.s1;
+                }
+            }
+            if(inst.operation.s2 == exdata.operation.dest && exdata.operation.op != sw){
+                if(inst.operation.s1 != 0){
+                    return inst.operation.s1;
+                }
+            }
+            if( inst.operation.s2 == memdata.operation.dest && memdata.operation.op != sw){
+                if(inst.operation.s1 != 0){
+                    return inst.operation.s1;
+                }
+            }
+        }
+    return -1;
+}
 void ID(struct inst){
-    if(inst.op == beq){
-        Branchflag =1;
-    }
-
+    if(ifid.validBit == 1 && idex.validBit ==0){
+        if(dataHazard() == -1) {
+            if (inst.op == beq) {
+                Branchflag = 1;
+            }
+            ifid.validBit = 0;
+            idex.validBit = 1;
+            idex.operation = ifid.operation;
+        }else {
+            idex.validBit = 1;
+        }
+}
 
 }
 void EX(void){
@@ -356,22 +402,33 @@ void EX(void){
         if (idex.operation.s1 > 31 || idex.operation.s2 > 31) {
             assert(!"Invalid register location");
         }
-        if (idex.operation.op == ADD) {
+        if (idex.operation.op == add) {
             exdata.data = registers[idex.operation.s1] + registers[idex.operation.s2];
-        } else if (idex.operation.op == ADDI) {
+        } else if (idex.operation.op == addi) {
             exdata.data = registers[idex.operation.s1] + idex.operation.im;
-        } else if (idex.operation.op == SUB) {
+        } else if (idex.operation.op == sub) {
             exdata.data = registers[idex.operation.s1] - registers[idex.operation.s2];
-        } else if (idex.operation.op == MUL) {
+        } else if (idex.operation.op == mul) {
             exdata.data = registers[idex.operation.s1] * registers[idex.operation.s2];
-        } else if (idex.operation.op == BEQ) {
-            if (registers[idex.operation.op.s1] == registers[id_ex_l.inst.rt]) {
-                program_counter = program_counter + id_ex_l.inst.i;
+        } else if (idex.operation.op == beq) {
+            if (registers[idex.operation.s1] == registers[idex.operation.s2]) {
+                program_counter = program_counter + idex.operation.im;
                 //if pc counter is larger than instruction memory assert
             }
             Branchflag = 0;
-
-
+        } else if (idex.operation.op == lw || idex.operation.op == sw) {
+            if (idex.operation.im % 4 == 0) {
+                exdata.data = registers[idex.operation.s2];
+                exdata.operation.dest = registers[idex.operation.s1] + idex.operation.im / 4;
+            } else {
+                assert(!"Misaligned memory access");
+            }
+        } else {
+            assert(!"Unrecognized instruction");
+        }
+        idex.validBit = 0;
+        exdata.validBit = 1;
+        exdata.operation =idex.operation;
         }
     }
 
