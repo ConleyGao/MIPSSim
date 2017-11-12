@@ -18,7 +18,7 @@ typedef struct{
     int s2;
     int im;
 } inst;
-
+inst* imem;
 
 /**********************InputProcess************************/
 //check matching "()"
@@ -364,10 +364,18 @@ int main (int argc, char *argv[]){
     }
 
     //start your code from here
-
-
-
-
+    //store instruction to instruction memory
+    imem = malloc(512*sizeof(inst));
+    char *instruction = (char *) malloc(100*sizeof(char));
+    i = 0;
+    while( imem[i].op!=haltSimulation){
+        progScanner(input,instruction);
+        regNumberConverter(instruction);
+        imem[i] = parser(instruction);
+        printf( "---- %d--%d--%d--%d--%d\n",imem[i].op,imem[i].dest,imem[i].im,imem[i].s1,imem[i].s2);
+        i++;
+    }
+    ////////////
 
 
 
