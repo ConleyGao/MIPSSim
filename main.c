@@ -15,7 +15,7 @@
 int lwresult;//temp that store lw result
 
 
-enum opcode{add, sub, mul, addi, beq, lw, sw, haltSimulation};
+enum opcode{add, sub, mul, addi, beq, lw, sw, haltSimulation,nop};
 typedef struct{
     enum opcode op;
     int dest;
@@ -57,8 +57,7 @@ inst* iMem;
 int* reg;
 int* dMem;
 
-inst tempInst = (inst) {0, 0, 0, 0, 0, 0};
-latch tempLatch = (latch) {0, 0, tempInst, 0, 0};
+const latch tempLatch = (latch) {0, 0, {nop, 0, 0, 0, 0,}, 0};
 int EXcycles;
 int EXdelay;
 int IDcycles = 0;
@@ -69,11 +68,17 @@ int EXflag;//EX ready?
 int MEMflag;//MEM ready?(1 ready for next inst)
 int WBflag;//WB ready?
 int Branchflag;//beq flag
+int ifUtil;
+int idUtil;
+int exUtil;
+int memUtil;
+int wbUtil;
+int EOIflag;
+int c, m, n;
 
 
-////////////////////stage counters/////////////////////
 
-int Mtime;//where is MEM at
+
 
 ////////////////////Registers///////////////////////////
 
@@ -406,7 +411,7 @@ int regCheck(int sReg){									//sReg is the register number that is being chec
     }
     return 0;											//If it never catches, the register is fine
 }
-void ID(){
+void ID(struct inst){
     if(idex.operation.op == 7){						//If halt has passed through here, it just auto returns
         return;
     }
@@ -477,8 +482,9 @@ void ID(){
             exit(1);								//If it doesn't decode one of the 7 possibilities there is an error, should be caught by the parser, but this is a backup
             return;
     }
+
     ifid = tempLatch;
-    IDcycles ++;
+    idUtil ++;
 }
 
 void EX(){
@@ -491,12 +497,16 @@ void EX(){
             switch(idex.operation.op){
                 case 0:									//add
                     exdata.EXresult = idex.operation.s1 + idex.operation.s2;
+                   
                     break;
                 case 2:									//sub
                     exdata.EXresult = idex.operation.s1 - idex.operation.s2;
+                    
                     break;
+                    
                 case 3:									//mul
                     exdata.EXresult = idex.operation.s1 * idex.operation.s2;	//Assumes that the system is operating at 32 bits so the result will be cast down to the right size
+                    
                     break;
                 case 4:
                     if(idex.operation.s1 == idex.operation.s2){
@@ -517,11 +527,11 @@ void EX(){
                     exit(1);
             }
             idex = tempLatch;
-            EXcycles ++;
+            exUtil++;
         }
         else if(EXdelay != 1){							//Note this is set by the previous stage, so it will never be changed until this stage clears the latch
             EXdelay -= 1;								//Counts down the delay for the EX stage
-            EXcycles ++;
+            exUtil ++;
             assert(EXdelay > -0); 						//Catch if this decreases too much
         }
     }
@@ -544,7 +554,11 @@ void SW(int saveAddress,int data){
 
 void IF(inst ifOp){
     if(ifOp.op==beq){//if brach, then no op before this pass EX
+        ifUtil++;
         Branchflag=1;//branch is here
+    }
+    if(ifOp.op==haltSimulation){
+        EOIflag=1;
     }
     return;
 }
@@ -560,10 +574,12 @@ void IF(inst ifOp){
 void MEM(inst memOp){
     memOp.mtime++;
     if(memOp.op==lw){//if LW, 0b100011
+        memUtil++;
         int accessAdd=reg[memOp.s1]+memOp.im;//accessing address
         lwresult=LW(accessAdd);//reading data to dest
 
     }else if(memOp.op==sw){//if SW, 0b101011
+        memUtil++;
         int accessAdd=reg[memOp.s1]+memOp.im;//accessing address
         SW(accessAdd,reg[memOp.s2]);
 
@@ -577,11 +593,14 @@ void MEM(inst memOp){
 
 
 void WB(inst wbOp, int data){
+
     if((wbOp.op==add)||(wbOp.op==sub)||(wbOp.op==mul)){//storing to $d(dest)
+        wbUtil++;
         reg[wbOp.dest]=data;
     }
     else if((wbOp.op==addi)||(wbOp.op==lw)){//storing to $t(s2)
         reg[wbOp.s2]=data;
+        wbUtil++;
     }
     return;
 }
@@ -592,7 +611,7 @@ void WB(inst wbOp, int data){
 /********************Main************************/
 int main (int argc, char *argv[]){
     int sim_mode=0;//mode flag, 1 for single-cycle, 0 for batch
-    int c,m,n;
+   
     int i;//for loop counter
     long mips_reg[REG_NUM];
     long pgm_c=0;//program counter
@@ -660,7 +679,7 @@ int main (int argc, char *argv[]){
     int WBvalue;
     int IFPC=0;//IF PC pointer
 
-    Mtime=0;
+   
 
     latch MEMlatch;//latch to MEM
     latch WBlatch;//latch to WB
@@ -690,7 +709,11 @@ int main (int argc, char *argv[]){
     //////////// main loop
     int foo=1;//loop check
     c=4;
-
+    ifUtil=0;
+    idUtil=0;
+    exUtil=0;
+    memUtil=0;
+    wbUtil=0;
 
 ///////////////////////////////////////////
     while(foo) {//test while loop
@@ -750,7 +773,6 @@ int main (int argc, char *argv[]){
          */
 
 
-
         /*
          * IF stage
          */
@@ -780,6 +802,7 @@ int main (int argc, char *argv[]){
 
         /**********************end*****************************/
         if((IFIDlatch.validBit)||(idex.validBit)||(MEMlatch.validBit)||(WBlatch.validBit)||!(EOIflag)){
+            if(WBinst.op==haltSimulation)
             foo=0;//iff all latches disabled, and eoi flag up, then end the loop
         }
 
