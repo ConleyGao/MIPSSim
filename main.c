@@ -50,12 +50,14 @@ datalatch memdata = { .validBit = 0};
 /////////////////////Flags/////////////////////////
 
 int c;//how many cycle MEM need, give by I/P
-inst* iMem;
-int* reg;
-int* dMem;
 int program_counter = 0;
 int registers[32];
 inst instructions[512];
+int ifUtil = 0;
+int idUtil = 0;
+int exUtil = 0;
+int memUtil = 0;
+int wbUtil = 0;
 
 int IFflag;//IF ready?
 int IDflag;//ID ready?
@@ -343,14 +345,16 @@ inst parser(char *instruction){
 
 void IF(){
     if(Branchflag == 0) {
-        if(ifid.validBit == 0){
-            ifid.validBit = 1 ;
-            ifid.operation = instructions[program_counter] ; // fetch from the instruction memory( need to konow where we are PCcounter)
-        }
-     else{
-            //do nothing nop
+        if (ifid.validBit == 0) {
+            ifid.validBit = 1;
+            ifid.operation = instructions[program_counter]; // fetch from the instruction memory( need to konow where we are PCcounter)
+            ifUtil++;
         }
     }
+    else{
+            //do nothing nop
+        }
+
 
 }
 int dataHazard(){
@@ -370,7 +374,7 @@ int dataHazard(){
                 return inst.operation.s1;
             }
         }
-        if(inst.operation.op == add && inst.operation.op == addi &&inst.operation.op == mul|| inst.operation.op == beq){
+        if(inst.operation.op == add || inst.operation.op == addi || inst.operation.op == mul || inst.operation.op == beq){
             //Need to check that rs and rt aren't targets of future ops
             if(inst.operation.s2 == idex.operation.dest && idex.operation.op != sw){
                 if(inst.operation.s1 != 0){
@@ -399,6 +403,7 @@ void ID(struct inst){
             ifid.validBit = 0;
             idex.validBit = 1;
             idex.operation = ifid.operation;
+            idUtil++;
         }else {
             idex.validBit = 1;
         }
@@ -437,11 +442,10 @@ void EX(void){
         idex.validBit = 0;
         exdata.validBit = 1;
         exdata.operation =idex.operation;
-        }
+        exUtil++;
     }
-
-
 }
+
 void MEM(...){}
 void WB(...){}
 
