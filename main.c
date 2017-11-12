@@ -406,7 +406,7 @@ int regCheck(int sReg){									//sReg is the register number that is being chec
     }
     return 0;											//If it never catches, the register is fine
 }
-void ID(struct inst){
+void ID(){
     if(idex.operation.op == 7){						//If halt has passed through here, it just auto returns
         return;
     }
@@ -477,7 +477,6 @@ void ID(struct inst){
             exit(1);								//If it doesn't decode one of the 7 possibilities there is an error, should be caught by the parser, but this is a backup
             return;
     }
-
     ifid = tempLatch;
     IDcycles ++;
 }
@@ -749,6 +748,7 @@ int main (int argc, char *argv[]){
          *
          *
          */
+
 
 
         /*
