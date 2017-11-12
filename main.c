@@ -12,7 +12,6 @@
 
 /**********Global variables **********************/
 
-enum opcode{add, sub, mul, addi, beq, lw, sw};
 int lwresult;//temp that store lw result
 
 
@@ -44,21 +43,12 @@ typedef struct {
     int EXresult;//ex stage result in to store or do stuff
 }latch;//latch between stages
 
-
-    int data;// data that need to be passed
-    int EXresult;//ex stage result in to store or do stuff
-}latch;//latch between stages
-
-typedef struct {
-    int validBit;//0 if latch not ready, 1 if ready, reset after use
-    inst operation;//op that needs to be passed
-    int data;// data that need to be passed
-}datalatch;
-
 latch ifid = { .validBit = 0 };
 latch idex = { .validBit = 0 };
-datalatch exdata = { .validBit = 0};
-datalatch memdata = { .validBit = 0};
+latch exdata = { .validBit = 0};
+latch memdata = { .validBit = 0};
+latch MEMlatch;//latch to MEM
+latch WBlatch;//latch to WB
 
 /////////////////////Flags/////////////////////////
 
@@ -67,13 +57,11 @@ inst* iMem;
 int* reg;
 int* dMem;
 
-
-
-
-int program_counter = 0;
-int registers[32];
-inst instructions[512];
-
+inst tempInst = (inst) {0, 0, 0, 0, 0, 0};
+latch tempLatch = (latch) {0, 0, tempInst, 0, 0};
+int EXcycles;
+int EXdelay;
+int IDcycles = 0;
 
 int IFflag;//IF ready?
 int IDflag;//ID ready?
@@ -81,7 +69,6 @@ int EXflag;//EX ready?
 int MEMflag;//MEM ready?(1 ready for next inst)
 int WBflag;//WB ready?
 int Branchflag;//beq flag
-
 
 
 ////////////////////stage counters/////////////////////
@@ -96,7 +83,6 @@ int Mtime;//where is MEM at
 char *progScanner(FILE *ipf, char * istbuff ){
     while (fgets(istbuff, 75, ipf))
         printf("String input is %s \n", istbuff);
-
 /**********************InputProcess************************/
 //check matching "()"
 int Pcheck ( char * ist){
@@ -377,116 +363,170 @@ inst parser(char *instruction){
 
 /********************Stages************************/
 
-
-
-
-/*
-void IF(){
-    if(Branchflag == 0) {
-        if (ifid.validBit == 0) {
-            ifid.validBit = 1;
-            ifid.operation = instructions[program_counter]; // fetch from the instruction memory( need to konow where we are PCcounter)
-            ifUtil++;
+int regCheck(int sReg){									//sReg is the register number that is being checked
+    if(MEMlatch.validBit == 1){							//This only checks against registers that are in valid latches
+        switch(MEMlatch.operation.op){					//Needs to check against different registers for different instructions
+            case 0:										//add, sub, mul all produce to the d register
+            case 2:
+            case 3:
+                if(MEMlatch.operation.dest == sReg) return 1;
+                break;
+            case 1:										//addi and lw produce to the s2 register
+            case 5:
+                if(MEMlatch.operation.s2 == sReg) return 1;
+                break;
+            case 4:										//beq, sw and halt produce nothing
+            case 6:
+            case 7:
+                break;
+            default:
+                printf("Op Code not recognized: EX_MEM Latch \n");
+                exit(1);								//This should never be reached
         }
     }
-    else{
-            //do nothing nop
+    if(WBlatch.validBit == 1){
+        switch(WBlatch.operation.op){					//Needs to check against different registers for different instructions
+            case 0:										//add, sub, mul all produce to the d register
+            case 2:
+            case 3:
+                if(WBlatch.operation.dest == sReg) return 1;
+                break;
+            case 1:										//addi and lw produce to the s2 register
+            case 5:
+                if(WBlatch.operation.s2 == sReg) return 1;
+                break;
+            case 4:										//beq, sw and halt produce nothing
+            case 6:
+            case 7:
+                break;
+            default:
+                printf("Op Code not recognized: MEM_WB Latch \n");
+                exit(1);								//This should never be reached
         }
-
-
-}
-int dataHazard(){
-    latch inst = {.operation = ifid.operation};
-        if( inst.operation.s1 == idex.operation.dest && idex.operation.op != sw){
-            if(inst.operation.s1 != 0){
-                return inst.operation.s1;
-            }
-        }
-        if(inst.operation.s1 == exdata.operation.dest && exdata.operation.op != sw){
-            if(inst.operation.s1 != 0){
-                return inst.operation.s1;
-            }
-        }
-        if( inst.operation.s1 == memdata.operation.dest && memdata.operation.op != sw){
-            if(inst.operation.s1 != 0){
-                return inst.operation.s1;
-            }
-        }
-        if(inst.operation.op == add || inst.operation.op == addi || inst.operation.op == mul || inst.operation.op == beq){
-            //Need to check that rs and rt aren't targets of future ops
-            if(inst.operation.s2 == idex.operation.dest && idex.operation.op != sw){
-                if(inst.operation.s1 != 0){
-                    return inst.operation.s1;
-                }
-            }
-            if(inst.operation.s2 == exdata.operation.dest && exdata.operation.op != sw){
-                if(inst.operation.s1 != 0){
-                    return inst.operation.s1;
-                }
-            }
-            if( inst.operation.s2 == memdata.operation.dest && memdata.operation.op != sw){
-                if(inst.operation.s1 != 0){
-                    return inst.operation.s1;
-                }
-            }
-        }
-    return -1;
+    }
+    return 0;											//If it never catches, the register is fine
 }
 void ID(struct inst){
-    if(ifid.validBit == 1 && idex.validBit ==0){
-        if(dataHazard() == -1) {
-            if (inst.op == beq) {
-                Branchflag = 1;
-            }
-            ifid.validBit = 0;
-            idex.validBit = 1;
-            idex.operation = ifid.operation;
-        }else {
-            idex.validBit = 1;
-        }
-}
+    if(idex.operation.op == 7){						//If halt has passed through here, it just auto returns
+        return;
+    }
+    switch(ifid.operation.op){						//Instruction cases are grouped for efficiency because certain instructions have the same actions
+        case 0:										//add
+        case 2:										//sub
+            if(regCheck(ifid.operation.s2) == 1) return;	//Checks s2 for add and sub, these two instructions have the same ID step
+            idex =ifid;
+            idex.operation.s1 = reg[ifid.operation.s1];	//loads s1 into the next latch
+            idex.operation.s2 = reg[ifid.operation.s2];	//loads s2 into the next latch
+            EXdelay = n;							//Set the EXdelay for normal operation delay
+            break;
 
-}
-void EX(void){
-    if(idex.validBit == 1 && exdata.validBit == 0) {
-        if (idex.operation.s1 > 31 || idex.operation.s2 > 31) {
-            assert(!"Invalid register location");
-        }
-        if (idex.operation.op == add) {
-            exdata.EXresult = registers[idex.operation.s1] + registers[idex.operation.s2];
-        } else if (idex.operation.op == addi) {
-            exdata.EXresult = registers[idex.operation.s1] + idex.operation.im;
-        } else if (idex.operation.op == sub) {
-            exdata.EXresult = registers[idex.operation.s1] - registers[idex.operation.s2];
-        } else if (idex.operation.op == mul) {
-            exdata.EXresult = registers[idex.operation.s1] * registers[idex.operation.s2];
-        } else if (idex.operation.op == beq) {
-            if (registers[idex.operation.s1] == registers[idex.operation.s2]) {
-                program_counter = program_counter + idex.operation.im;
-                //if pc counter is larger than instruction memory assert
+        case 3:										//mul
+            if(regCheck(ifid.operation.s2) == 1) return;	//Checks s2 for mul, it has a different ID step than add and sub
+            idex = ifid;
+            idex.operation.s1 = reg[ifid.operation.s1];	//loads s1 into the next latch
+            idex.operation.s2 = reg[ifid.operation.s2];	//loads s2 into the next latch
+            EXdelay = m;							//Set the EXdelay for multiplication delay (difference between add and sub for passing to EX)
+            break;
+
+        case 4:										//beq
+            if(regCheck(ifid.operation.s2) == 1) return;	//Checks s2 of beq, it has a different ID step than the mul, add and sub
+            //check that im value is in range for 16 bit 2's comp, +/- 32767 (2^15 - 1)
+            if((ifid.operation.im < -32767)||(ifid.operation.im > 32767)){
+                printf("Immediate field out of numerical bounds, %d \n", ifid.operation.im);	//Note we did not just use two assertions because we wanted to print an error message
+                exit(1);							//Halt the code if this error message has been printed
             }
-            Branchflag = 0;
-        } else if (idex.operation.op == lw || idex.operation.op == sw) {
-            if (idex.operation.im % 4 == 0) {
-                exdata.EXresult = registers[idex.operation.s2];
-                exdata.operation.dest = registers[idex.operation.s1] + idex.operation.im / 4;
-            } else {
-                assert(!"Misaligned memory access");
+            idex = ifid;
+            idex.operation.s1 = reg[ifid.operation.s1];	//loads s1 into the next latch
+            idex.operation.s2 = reg[ifid.operation.s2];	//loads s2 into the next latch
+            Branchflag = 1;						//If it reads a branch, mark branch pending
+            EXdelay = n;							//Set the EXdelay for normal operation delay
+            break;
+
+        case 1:										//addi
+        case 5:										//lw
+            //check that im value is in range for 16 bit 2's comp, +/- 32767 (2^15 - 1)
+            if((ifid.operation.im < -32767)||(ifid.operation.im > 32767)){
+                printf("Immediate field out of numerical bounds, %d \n", ifid.operation.im);	//Note we did not just use two assertions because we wanted to print an error message
+                exit(1);							//Halt the code if this error message has been printed
             }
-        } else {
-            assert(!"Unrecognized instruction");
-        }
-        idex.validBit = 0;
-        exdata.validBit = 1;
-        exdata.operation =idex.operation;
-        }
+            idex =ifid;
+            idex.operation.s1 = reg[ifid.operation.s1];	//loads s1 into the next latch
+            EXdelay = n;							//Set the EXdelay for normal operation delay
+            break;
+
+        case 6:										//sw
+            if(regCheck(ifid.operation.s2) == 1) return;	//Checks s2 of sw, it relies on s2 while addi and lw do not
+            //check that im value is in range for 16 bit 2's comp, +/- 32767 (2^15 - 1)
+            if((ifid.operation.im < -32767)||(ifid.operation.im > 32767)){
+                printf("Immediate field out of numerical bounds, %d \n", ifid.operation.im);	//Note we did not just use two assertions because we wanted to print an error message
+                exit(1);							//Halt the code if this error message has been printed
+            }
+            idex = ifid;
+            idex.operation.s1 = reg[ifid.operation.s1];	//loads s1 into the next latch
+            idex.operation.s2 = reg[ifid.operation.s2];	//loads s2 into the next latch
+            EXdelay = n;							//Set the EXdelay for normal operation delay
+            break;
+
+        case 7:										//halt
+            idex = ifid;
+            EXdelay = 1;							//Set the EXdelay to be 1 for fast propagation
+            return;									//Return so we don't count as useful work or clear the latch
+
+        default:
+            printf("Op Code not recognized: ID Stage \n");
+            exit(1);								//If it doesn't decode one of the 7 possibilities there is an error, should be caught by the parser, but this is a backup
+            return;
     }
 
-
+    ifid = tempLatch;
+    IDcycles ++;
 }
-void MEM(...){}
-void WB(...){}
 
+void EX(){
+    if(exdata.operation.op == 7){						//If halt has passed through here, it just auto returns
+        return;
+    }
+    else if(idex.validBit == 1){						//Check previous latch to see if it can start it's operation
+        if((EXdelay == 1)&&(exdata.validBit == 0)){ 	//Once the delay count down is finished and the latch is ready to receive, compute and push
+            exdata = idex;
+            switch(idex.operation.op){
+                case 0:									//add
+                    exdata.EXresult = idex.operation.s1 + idex.operation.s2;
+                    break;
+                case 2:									//sub
+                    exdata.EXresult = idex.operation.s1 - idex.operation.s2;
+                    break;
+                case 3:									//mul
+                    exdata.EXresult = idex.operation.s1 * idex.operation.s2;	//Assumes that the system is operating at 32 bits so the result will be cast down to the right size
+                    break;
+                case 4:
+                    if(idex.operation.s1 == idex.operation.s2){
+                        IFPC = idex.operation.im + idex.PC + 1;	//Advances pc by the immediate value past the pc of the next instruction
+                    }
+                    Branchflag = 2;					//Set to 2 so the IF stage knows not to unfreeze until the next cycle
+                    break;
+                case 1:									//addi
+                case 5:									//lw
+                case 6:									//sw
+                    exdata.EXresult = idex.operation.s1 + idex.operation.im;	//Note these three all do the same thing in EX, the results are just handled differently
+                    break;
+
+                case 7:
+                    return;
+                default:
+                    printf("Op Code not recognized: EX stage \n");
+                    exit(1);
+            }
+            idex = tempLatch;
+            EXcycles ++;
+        }
+        else if(EXdelay != 1){							//Note this is set by the previous stage, so it will never be changed until this stage clears the latch
+            EXdelay -= 1;								//Counts down the delay for the EX stage
+            EXcycles ++;
+            assert(EXdelay > -0); 						//Catch if this decreases too much
+        }
+    }
+}
 
 /*****************Support Functions***************/
 
@@ -506,9 +546,6 @@ void SW(int saveAddress,int data){
 void IF(inst ifOp){
     if(ifOp.op==beq){//if brach, then no op before this pass EX
         Branchflag=1;//branch is here
-    }
-    else(ifOp.op==haltSimulation){//if this the end
-        EOIflag=1;
     }
     return;
 }
@@ -761,9 +798,9 @@ int main (int argc, char *argv[]){
         test_counter++;
         printf("press ENTER to continue\n");
         while(getchar() != '\n');
-    if(sim_cycle=10){
-        foo=0;
-    }
+        if(sim_cycle=10){
+            foo=0;
+        }
     }
 
     //add the following code to the end of the simulation,
