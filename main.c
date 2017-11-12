@@ -19,7 +19,49 @@ typedef struct{
     int im;
 } inst;
 
+///////////////////Structs/////////////////////////
+typedef struct {
+    enum opcode op;//op code
+    int dest;//destination register
+    int s1;// source 1, piority, $s, $s1
+    int s2;// source 2, Or $t!
+    int im;//immediate value
+    int mtime;
+}inst;  // instruction set
 
+typedef struct {
+    int validBit;//0 if latch not ready, 1 if ready, reset after use
+    int PC;//where is PC now
+    inst operation;//op that needs to be passed
+    int data;// data that need to be passed
+    int EXresult;//ex stage result in to store or do stuff
+}latch;//latch between stages
+
+typedef struct {
+    int validBit;//0 if latch not ready, 1 if ready, reset after use
+    inst operation;//op that needs to be passed
+    int data;// data that need to be passed
+}datalatch;
+
+latch ifid = { .validBit = 0 };
+latch idex = { .validBit = 0 };
+datalatch exdata = { .validBit = 0};
+
+/////////////////////Flags/////////////////////////
+
+int c;//how many cycle MEM need, give by I/P
+inst* iMem;
+int* reg;
+int* dMem;
+
+
+
+int IFflag;//IF ready?
+int IDflag;//ID ready?
+int EXflag;//EX ready?
+int MEMflag;//MEM ready?(1 ready for next inst)
+int WBflag;//WB ready?
+int Branchflag;//beq flag
 /**********************InputProcess************************/
 int Pcheck ( char * ist){
     int lcount =0;
@@ -290,9 +332,51 @@ inst parser(char *instruction){
 /********************Stages************************/
 
 
-void IF(...){}
-void ID(...){}
-void EX(..){}
+void IF(){
+    if(Branchflag == 0) {
+        if(ifid.validBit == 0){
+            ifid.validBit = 1 ;
+            ifid.operation = ; // fetch from the instruction memory( need to konow where we are PCcounter)
+        }
+     else{
+            //do nothing nop
+        }
+    }
+
+}
+void ID(struct inst){
+    if(inst.op == beq){
+        Branchflag =1;
+    }
+
+
+}
+void EX(void){
+    if(idex.validBit == 1 && exdata.validBit == 0) {
+        if (idex.operation.s1 > 31 || idex.operation.s2 > 31) {
+            assert(!"Invalid register location");
+        }
+        if (idex.operation.op == ADD) {
+            exdata.data = registers[idex.operation.s1] + registers[idex.operation.s2];
+        } else if (idex.operation.op == ADDI) {
+            exdata.data = registers[idex.operation.s1] + idex.operation.im;
+        } else if (idex.operation.op == SUB) {
+            exdata.data = registers[idex.operation.s1] - registers[idex.operation.s2];
+        } else if (idex.operation.op == MUL) {
+            exdata.data = registers[idex.operation.s1] * registers[idex.operation.s2];
+        } else if (idex.operation.op == BEQ) {
+            if (registers[idex.operation.op.s1] == registers[id_ex_l.inst.rt]) {
+                program_counter = program_counter + id_ex_l.inst.i;
+                //if pc counter is larger than instruction memory assert
+            }
+            Branchflag = 0;
+
+
+        }
+    }
+
+
+}
 void MEM(...){}
 void WB(...){}
 
