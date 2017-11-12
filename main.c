@@ -11,7 +11,7 @@
 #define REG_NUM 32
 
 /**********Global variables **********************/
-enum opcode{add, sub, mul, addi, beq, lw, sw};
+enum opcode{add=0, sub, mul, addi, beq, lw, sw};
 int lwresult;//temp that store lw result
 
 
@@ -38,7 +38,7 @@ int c;//how many cycle MEM need, give by I/P
 inst* iMem;
 int* reg;
 int* dMem;
-
+int cycle;//main timer
 
 
 int IFflag;//IF ready?
@@ -143,7 +143,7 @@ void WB(inst wbOp, int data){
 
 /********************Main************************/
 int main() {
-
+/*******************variables*********************/
     dMem=(int *)malloc(sizeof(int)*512);
     iMem=(inst *)malloc(512* sizeof(inst));
     reg=(int *)malloc(32* sizeof(int));
@@ -159,9 +159,10 @@ int main() {
 
     latch MEMlatch;//latch to MEM
     latch WBlatch;//latch to WB
-    latch NMWBlatch;//for those who are not MEM op
+    //latch NMWBlatch;//for those who are not MEM op
     latch IFIDlatch;//latch to ID
 
+    c=6;
     inst MEMinst;
     inst WBinst;
     inst IFinst;
@@ -170,18 +171,32 @@ int main() {
     int MEMtop=0;
 /*******************Testing use variables***************************/
     int foo=1;//loop check
-    c=4;
 
+    cycle=0;
+    inst tempinst= (inst){lw, 0, 1, 2, 4, 0};
+    MEMlatch.operation = tempinst;
+    MEMlatch.operation.op=sw;
+    MEMlatch.validBit = 1;
+    MEMlatch.PC = 0x00;
+    MEMlatch.EXresult = 1;
+    inst* ptr=realMEM;
+    for(int j=0;j<c;j++){
+        realMEM[j]=tempinst;
+    }
 
 ///////////////////////////////////////////
     while(foo) {//test while loop
+        cycle++;
 
         /*
          * WB stage
          */
+        printf("cycle: %d\n", cycle);
         if (WBlatch.validBit) {//if valid, download info
-            WBinst = MEMlatch.operation;//passing inst
+            WBinst = WBlatch.operation;//passing inst
+ //           printf("%d %d %d %d\n",(int)WBinst.op,WBinst.dest,WBinst.im,WBinst.s1);
             WBlatch.validBit = 0;//reset valid
+ //           printf("%d\n",WBlatch.validBit);
             WBPC = MEMlatch.PC;
             WBvalue = MEMlatch.EXresult;
         }
@@ -192,20 +207,27 @@ int main() {
         /*
          * MEM stage
          */
+
         if (MEMlatch.validBit) {//if valid, download info
             MEMinst = MEMlatch.operation;//passing inst
-            MEMlatch.validBit = 0;//reset valid
+            //MEMlatch.validBit = 0;//reset valid
             MEMPC = MEMlatch.PC;
             MEMexResult = MEMlatch.EXresult;
             MEMinst.mtime = 0;//initialize mtime
+            realMEM[MEMempty] = MEMinst;//insert into the array
+            MEMempty+=1;
+
+           printf("_________________%d\n",MEMempty);
+            MEMlatch.operation.dest++;
         }
-        realMEM[MEMempty] = MEMinst;//insert into the array
-        MEMempty++;
-        if (MEMempty = c) { MEMempty = 0; }//reset
+        if (MEMempty == c) { MEMempty = 0; }//reset
 
         for (int i = 0; i < c; i++) {//for each
-            if (realMEM[i].op != 999) {//if op valid
+            //printf("i=%d op=%d dest=%d==============\n",i,(int)realMEM[i].op,realMEM[i].dest);
+            //if ((int)realMEM[i].op == 5) {//if op valid
+                printf("i=%d, op=%d, dest=%d, s= %d %d, im=%d, mtime=%d  \n",i,(int)realMEM[i].op,realMEM[i].dest,realMEM[i].s1,realMEM[i].s2,realMEM[i].im,realMEM[i].mtime);
                 MEM(realMEM[i]);
+
                 if ((realMEM[i].mtime == c) && !(WBlatch.validBit)) {//if this inst is finished, then pass on
                     MEMflag = 1;
                     WBlatch.operation = MEMinst;
@@ -216,7 +238,8 @@ int main() {
                     MEMtop++;
                     if (MEMtop = c) { MEMtop = 0; }//reset memtop
                 }
-            }
+
+            //}
 
         }
 
@@ -245,7 +268,23 @@ int main() {
 
         IF(IFinst);//this will set the branchflag
 
+    if(cycle==10){
+        foo=0;
+    }
+        /*******************Code2*************************/
+        printf("cycle: %d ",ycle);
+        if(sim_mode==1){
+            for (int a=1;a<REG_NUM;a++){
+                printf("%d  ",reg[a]);
+            }
+        }
+        printf("%d\n",pgm_c);
+        pgm_c+=4;
+        //sim_cycle+=1;
+        test_counter++;
+        printf("press ENTER to continue\n");
+        while(getchar() != '\n');
 
     }
-
+    return 0;
 }
