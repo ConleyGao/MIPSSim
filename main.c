@@ -50,14 +50,12 @@ datalatch memdata = { .validBit = 0};
 /////////////////////Flags/////////////////////////
 
 int c;//how many cycle MEM need, give by I/P
+inst* iMem;
+int* reg;
+int* dMem;
 int program_counter = 0;
 int registers[32];
 inst instructions[512];
-int ifUtil = 0;
-int idUtil = 0;
-int exUtil = 0;
-int memUtil = 0;
-int wbUtil = 0;
 
 int IFflag;//IF ready?
 int IDflag;//ID ready?
@@ -403,7 +401,6 @@ void ID(struct inst){
             ifid.validBit = 0;
             idex.validBit = 1;
             idex.operation = ifid.operation;
-            idUtil++;
         }else {
             idex.validBit = 1;
         }
@@ -442,12 +439,76 @@ void EX(void){
         idex.validBit = 0;
         exdata.validBit = 1;
         exdata.operation =idex.operation;
-        exUtil++;
+        }
     }
-}
+
+
 
 void MEM(...){}
 void WB(...){}
+
+
+/*****************Support Functions***************/
+
+int LW(int address){
+    return dMem[address];
+}
+
+void SW(int saveAddress,int data){
+    dMem[saveAddress]=data;
+    return;
+}
+
+
+
+////********************Todd**********************////
+
+void IF(inst ifOp){
+    if(ifOp.op==beq){//if brach, then no op before this pass EX
+        Branchflag=1;//branch is here
+    }
+    return;
+}
+
+
+
+
+
+
+/* if not LW or SW, then just skip MEM and move on to
+ * next stage, if LW or SW then wait c cycles;
+ */
+void MEM(inst memOp){
+    memOp.mtime++;
+    if(memOp.op==lw){//if LW, 0b100011
+        int accessAdd=reg[memOp.s1]+memOp.im;//accessing address
+        lwresult=LW(accessAdd);//reading data to dest
+
+    }else if(memOp.op==sw){//if SW, 0b101011
+        int accessAdd=reg[memOp.s1]+memOp.im;//accessing address
+        SW(accessAdd,reg[memOp.s2]);
+
+    }else{//NOT LW or SW, just next stage
+        //nothing
+    }
+
+
+    return;//dummy return
+}
+
+
+void WB(inst wbOp, int data){
+    if((wbOp.op==add)||(wbOp.op==sub)||(wbOp.op==mul)){//storing to $d(dest)
+        reg[wbOp.dest]=data;
+    }
+    else if((wbOp.op==addi)||(wbOp.op==lw)){//storing to $t(s2)
+        reg[wbOp.s2]=data;
+    }
+    return;
+}
+
+
+
 
 /********************Main************************/
 int main (int argc, char *argv[]){
@@ -507,19 +568,108 @@ int main (int argc, char *argv[]){
             mips_reg[i]=0;
         }
     }
+    dMem=(int *)malloc(sizeof(int)*512);
+    iMem=(inst *)malloc(512* sizeof(inst));
+    reg=(int *)malloc(32* sizeof(int));
+    reg[0]=0;//cant change
+
+    int MEMPC;//MEM PC pointer
+    int WBPC;//WB PC pointer
+    int MEMexResult;//MEM EX result
+    int WBvalue;
+    int IFPC=0;//IF PC pointer
+
+    Mtime=0;
+
+    latch MEMlatch;//latch to MEM
+    latch WBlatch;//latch to WB
+    latch NMWBlatch;//for those who are not MEM op
+    latch IFIDlatch;//latch to ID
+
+    inst MEMinst;
+    inst WBinst;
+    inst IFinst;
+    inst realMEM[c];//true mem op array
+    int MEMempty=0;//empty slot pointer
+    int MEMtop=0;
+/*******************Testing use variables***************************/
+    int foo=1;//loop check
+    c=4;
+
 
     //start your code from here
 
+///////////////////////////////////////////
+    while(foo) {//test while loop
+
+        /*
+         * WB stage
+         */
+        if (WBlatch.validBit) {//if valid, download info
+            WBinst = MEMlatch.operation;//passing inst
+            WBlatch.validBit = 0;//reset valid
+            WBPC = MEMlatch.PC;
+            WBvalue = MEMlatch.EXresult;
+        }
+        WB(WBinst, WBvalue);//store and this is the end of the inst
 
 
 
+        /*
+         * MEM stage
+         */
+        if (MEMlatch.validBit) {//if valid, download info
+            MEMinst = MEMlatch.operation;//passing inst
+            MEMlatch.validBit = 0;//reset valid
+            MEMPC = MEMlatch.PC;
+            MEMexResult = MEMlatch.EXresult;
+            MEMinst.mtime = 0;//initialize mtime
+        }
+        realMEM[MEMempty] = MEMinst;//insert into the array
+        MEMempty++;
+        if (MEMempty = c) { MEMempty = 0; }//reset
+
+        for (int i = 0; i < c; i++) {//for each
+            if (realMEM[i].op != 999) {//if op valid
+                MEM(realMEM[i]);
+                if ((realMEM[i].mtime == c) && !(WBlatch.validBit)) {//if this inst is finished, then pass on
+                    MEMflag = 1;
+                    WBlatch.operation = MEMinst;
+                    WBlatch.EXresult = MEMexResult;
+                    WBlatch.PC = MEMPC;
+                    WBlatch.validBit = 1;
+                    realMEM[i].op = 999;//invalid this element
+                    MEMtop++;
+                    if (MEMtop = c) { MEMtop = 0; }//reset memtop
+                }
+            }
+
+        }
+
+        /*
+         *
+         *
+         * All the other stages
+         *
+         *
+         *
+         */
 
 
+        /*
+         * IF stage
+         */
+        if (!Branchflag){//if branchflag is not set, then read next
+            IFinst = iMem[IFPC];
+            IFIDlatch.validBit=1;
+            IFIDlatch.PC=IFPC;
+            IFIDlatch.operation=IFinst;
+            IFPC++;
+        }else{//if branchflag is set, nop
+            IFIDlatch.validBit=0;//just in case, disable this latch
+        }
 
-
-
-
-
+        IF(IFinst);//this will set the branchflag
 
 
 
