@@ -1,5 +1,5 @@
 // List the full names of ALL group members at the top of your code.
-// Group Members: Gongtao Yang,
+// Group Members: Gongtao Yang, Kai Qian, Conley Gao
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
