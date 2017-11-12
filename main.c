@@ -11,14 +11,8 @@
 #define REG_NUM 32
 
 /**********Global variables **********************/
-
-enum opcode{add, sub, mul, addi, beq, lw, sw};
 int lwresult;//temp that store lw result
-
-
 enum opcode{add, sub, mul, addi, beq, lw, sw, haltSimulation};
-
-
 ///////////////////Structs/////////////////////////
 typedef struct {
     enum opcode op;//op code
@@ -28,26 +22,21 @@ typedef struct {
     int im;//immediate value
     int mtime;
 }inst;  // instruction set
-inst* imem;
 
 typedef struct {
     int validBit;//0 if latch not ready, 1 if ready, reset after use
     int PC;//where is PC now
     inst operation;//op that needs to be passed
-
     int EXresult;//ex stage result in to store or do stuff
 }latch;//latch between stages
 
-typedef struct {
-    int validBit;//0 if latch not ready, 1 if ready, reset after use
-    inst operation;//op that needs to be passed
-    int data;// data that need to be passed
-}datalatch;
+
+
 
 latch ifid = { .validBit = 0 };
 latch idex = { .validBit = 0 };
-datalatch exdata = { .validBit = 0};
-datalatch memdata = { .validBit = 0};
+latch exdata = { .validBit = 0};
+latch memdata = { .validBit = 0};
 
 /////////////////////Flags/////////////////////////
 
@@ -56,6 +45,11 @@ inst* iMem;
 int* reg;
 int* dMem;
 
+int ifUtil;
+int idUtil;
+int exUtil;
+int memUtil;
+int wbUtil;
 
 
 
@@ -70,6 +64,7 @@ int EXflag;//EX ready?
 int MEMflag;//MEM ready?(1 ready for next inst)
 int WBflag;//WB ready?
 int Branchflag;//beq flag
+int EOIflag;//end of instructions flag
 
 
 
@@ -261,6 +256,14 @@ char *regNumberConverter(char * instruction){
             strcat(instruction,token);
         }
 
+/*
+char *regNumberConverter(...);
+struct inst parser(...);
+char *progScanner(...);
+char *regNumberConverter(...);
+struct inst parser(...);
+*/
+
         token = strtok(NULL," \r\n" );
     }
     free(ist);
@@ -367,11 +370,7 @@ inst parser(char *instruction){
 
 
 
-//void IF(...){}
-//void ID(...){}
-//void EX(...){}
-//void MEM(...){} <-----------Todd
-//void WB(...){}
+
 /*
 void IF(){
     if(Branchflag == 0) {
@@ -385,7 +384,7 @@ void IF(){
     }
 
 }
-*/
+ */
 int dataHazard(){
     latch inst = {.operation = ifid.operation};
         if( inst.operation.s1 == idex.operation.dest && idex.operation.op != sw){
@@ -444,13 +443,13 @@ void EX(void){
             assert(!"Invalid register location");
         }
         if (idex.operation.op == add) {
-            exdata.data = registers[idex.operation.s1] + registers[idex.operation.s2];
+            exdata.EXresult = registers[idex.operation.s1] + registers[idex.operation.s2];
         } else if (idex.operation.op == addi) {
-            exdata.data = registers[idex.operation.s1] + idex.operation.im;
+            exdata.EXresult = registers[idex.operation.s1] + idex.operation.im;
         } else if (idex.operation.op == sub) {
-            exdata.data = registers[idex.operation.s1] - registers[idex.operation.s2];
+            exdata.EXresult = registers[idex.operation.s1] - registers[idex.operation.s2];
         } else if (idex.operation.op == mul) {
-            exdata.data = registers[idex.operation.s1] * registers[idex.operation.s2];
+            exdata.EXresult = registers[idex.operation.s1] * registers[idex.operation.s2];
         } else if (idex.operation.op == beq) {
             if (registers[idex.operation.s1] == registers[idex.operation.s2]) {
                 program_counter = program_counter + idex.operation.im;
@@ -459,7 +458,7 @@ void EX(void){
             Branchflag = 0;
         } else if (idex.operation.op == lw || idex.operation.op == sw) {
             if (idex.operation.im % 4 == 0) {
-                exdata.data = registers[idex.operation.s2];
+                exdata.EXresult = registers[idex.operation.s2];
                 exdata.operation.dest = registers[idex.operation.s1] + idex.operation.im / 4;
             } else {
                 assert(!"Misaligned memory access");
@@ -474,7 +473,7 @@ void EX(void){
     }
 
 
-}
+
 
 
 
@@ -496,6 +495,9 @@ void SW(int saveAddress,int data){
 void IF(inst ifOp){
     if(ifOp.op==beq){//if brach, then no op before this pass EX
         Branchflag=1;//branch is here
+    }
+    else(ifOp.op==haltSimulation){//if this the end
+        EOIflag=1;
     }
     return;
 }
@@ -603,7 +605,7 @@ int main (int argc, char *argv[]){
     dMem=(int *)malloc(sizeof(int)*512);
     iMem=(inst *)malloc(512* sizeof(inst));
     reg=(int *)malloc(32* sizeof(int));
-    reg[0]=0;//cant change
+//    reg[0]=0;//cant change
 
     int MEMPC;//MEM PC pointer
     int WBPC;//WB PC pointer
@@ -618,6 +620,7 @@ int main (int argc, char *argv[]){
     latch NMWBlatch;//for those who are not MEM op
     latch IFIDlatch;//latch to ID
 
+    c=6;
     inst MEMinst;
     inst WBinst;
     inst IFinst;
@@ -627,19 +630,24 @@ int main (int argc, char *argv[]){
 
 
     //store instruction to instruction memory
-    imem = malloc(512*sizeof(inst));
+    iMem = malloc(512*sizeof(inst));
     char *instruction = (char *) malloc(100*sizeof(char));
     i = 0;
-    while( imem[i].op!=haltSimulation){
+    while( iMem[i].op!=haltSimulation){
         progScanner(input,instruction);
         regNumberConverter(instruction);
-        imem[i] = parser(instruction);
-        printf( "---- %d--%d--%d--%d--%d\n",imem[i].op,imem[i].dest,imem[i].im,imem[i].s1,imem[i].s2);
+        iMem[i] = parser(instruction);
+        printf( "---- %d--%d--%d--%d--%d\n",iMem[i].op,iMem[i].dest,iMem[i].im,iMem[i].s1,iMem[i].s2);
         i++;
     }
     //////////// main loop
     int foo=1;//loop check
     c=4;
+    ifUtil=0;
+    idUtil=0;
+    exUtil=0;
+    memUtil=0;
+    wbUtil=0;
 
 
 ///////////////////////////////////////////
@@ -655,10 +663,14 @@ int main (int argc, char *argv[]){
             WBvalue = MEMlatch.EXresult;
         }
         WB(WBinst, WBvalue);//store and this is the end of the inst
+        wbUtil++;
+
+
 
         /*
          * MEM stage
          */
+        MEMlatch=memdata;
         if (MEMlatch.validBit) {//if valid, download info
             MEMinst = MEMlatch.operation;//passing inst
             MEMlatch.validBit = 0;//reset valid
@@ -687,6 +699,8 @@ int main (int argc, char *argv[]){
 
         }
 
+        memUtil++;
+
         /*
          *
          *
@@ -703,39 +717,67 @@ int main (int argc, char *argv[]){
         if (!Branchflag){//if branchflag is not set, then read next
             IFinst = iMem[IFPC];
             IFIDlatch.validBit=1;
-            IFIDlatch.PC=IFPC;
-            IFIDlatch.operation=IFinst;
-            IFPC++;
         }else{//if branchflag is set, nop
             IFIDlatch.validBit=0;//just in case, disable this latch
         }
 
+
         IF(IFinst);//this will set the branchflag
+        if(!EOIflag){//if not end of instruction
+            IFIDlatch.PC=IFPC;
+            IFIDlatch.operation=IFinst;
+            IFPC++;
+        }else{
+            IFIDlatch.validBit=0;//disable IFID latch
+        }
+        ifid=IFIDlatch;
+        ifUtil++;
 
 
+
+        /**********************end*****************************/
+        if((IFIDlatch.validBit)||(idex.validBit)||(MEMlatch.validBit)||(WBlatch.validBit)||!(EOIflag)){
+            foo=0;//iff all latches disabled, and eoi flag up, then end the loop
+        }
+
+
+        ////////////////////////////////////////////////////////
+        /*********************code 2***************************/
+        printf("cycle: %d ",sim_cycle);
+        if(sim_mode==1){
+            for (i=1;i<REG_NUM;i++){
+                printf("%d  ",mips_reg[i]);
+            }
+        }
+        printf("%d\n",pgm_c);
+        pgm_c+=4;
+        sim_cycle+=1;
+        test_counter++;
+        printf("press ENTER to continue\n");
+        while(getchar() != '\n');
+    if(sim_cycle=10){
+        foo=0;
+    }
     }
 
+    //add the following code to the end of the simulation,
+    //to output statistics in batch mode
+    if(sim_mode==0){
+        fprintf(output,"program name: %s\n",argv[5]);
+        fprintf(output,"stage utilization: %f  %f  %f  %f  %f \n",
+                ifUtil, idUtil, exUtil, memUtil, wbUtil);
+        // add the (double) stage_counter/sim_cycle for each
+        // stage following sequence IF ID EX MEM WB
 
+        fprintf(output,"register values ");
+        for (i=1;i<REG_NUM;i++){
+            fprintf(output,"%d  ",mips_reg[i]);
+        }
+        fprintf(output,"%d\n",pgm_c);
 
-//add the following code to the end of the simulation,
-//to output statistics in batch mode
-if(sim_mode==0){
-fprintf(output,"program name: %s\n",argv[5]);
-fprintf(output,"stage utilization: %f  %f  %f  %f  %f \n",
-ifUtil, idUtil, exUtil, memUtil, wbUtil);
-// add the (double) stage_counter/sim_cycle for each
-// stage following sequence IF ID EX MEM WB
-
-fprintf(output,"register values ");
-for (i=1;i<REG_NUM;i++){
-fprintf(output,"%d  ",mips_reg[i]);
+    }
+    //close input and output files at the end of the simulation
+    fclose(input);
+    fclose(output);
+    return 0;
 }
-fprintf(output,"%d\n",pgm_c);
-
-}
-//close input and output files at the end of the simulation
-fclose(input);
-fclose(output);
-return 0;
-}
-
