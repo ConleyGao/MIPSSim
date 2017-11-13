@@ -1,5 +1,5 @@
 // List the full names of ALL group members at the top of your code.
-// Group Members: Gongtao Yang, Kai Qian, Conley Gao
+// Group Members: Gongtao Yang,
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,13 +16,6 @@ int lwresult;//temp that store lw result
 
 
 enum opcode{add, sub, mul, addi, beq, lw, sw, haltSimulation,nop};
-typedef struct{
-    enum opcode op;
-    int dest;
-    int s1;
-    int s2;
-    int im;
-} inst;
 
 
 ///////////////////Structs/////////////////////////
@@ -43,12 +36,13 @@ typedef struct {
     int EXresult;//ex stage result in to store or do stuff
 }latch;//latch between stages
 
-latch ifid = { .validBit = 0 };
-latch idex = { .validBit = 0 };
-latch exdata = { .validBit = 0};
+latch IFIDlatch = { .validBit = 0 };
+latch IDEXlatch = { .validBit = 0 };
+latch EXMEMlatch = { .validBit = 0};
 latch memdata = { .validBit = 0};
-latch MEMlatch;//latch to MEM
-latch WBlatch;//latch to WB
+latch EXMEMlatch;//latch to MEM
+latch MEMWBlatch;//latch to WB
+
 
 /////////////////////Flags/////////////////////////
 
@@ -65,7 +59,7 @@ int IDcycles = 0;
 int IFflag;//IF ready?
 int IDflag;//ID ready?
 int EXflag;//EX ready?
-int MEMflag;//MEM ready?(1 ready for next inst)
+
 int WBflag;//WB ready?
 int Branchflag;//beq flag
 int ifUtil;
@@ -75,6 +69,8 @@ int memUtil;
 int wbUtil;
 int EOIflag;
 int c, m, n;
+int IFPC;
+int Mdelay;
 
 
 
@@ -121,7 +117,7 @@ char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
             printf("Mismatch parenthese exiting ");
             exit(1);
         }
-        printf("String input is %s \n", ist);
+      //  printf("String input is %s \n", ist);
 
         // ///////////////remove spaces and comma
         /* get the first token */
@@ -132,7 +128,7 @@ char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
         while( token != NULL ) {
             strcat(instruction, " ");
             strcat(instruction, token);
-            printf( "----- %s\n", instruction );
+           // printf( "----- %s\n", instruction );
 
             token = strtok(NULL,", \t\r\n()" );
         }
@@ -271,7 +267,7 @@ char *regNumberConverter(char * instruction){
 }
 // check format , make a structure based on type of format , return it
 inst parser(char *instruction){
-    inst ninst ={add,0,0,0,0};
+    inst ninst ={nop,0,0,0,0,0};
     char *type = "?";
     char *op = (char *) malloc(100*sizeof(char));
     char *s1 = (char *) malloc(100*sizeof(char));
@@ -369,40 +365,40 @@ inst parser(char *instruction){
 /********************Stages************************/
 
 int regCheck(int sReg){									//sReg is the register number that is being checked
-    if(MEMlatch.validBit == 1){							//This only checks against registers that are in valid latches
-        switch(MEMlatch.operation.op){					//Needs to check against different registers for different instructions
-            case 0:										//add, sub, mul all produce to the d register
-            case 2:
-            case 3:
-                if(MEMlatch.operation.dest == sReg) return 1;
+    if(EXMEMlatch.validBit == 1){							//This only checks against registers that are in valid latches
+        switch(EXMEMlatch.operation.op){					//Needs to check against different registers for different instructions
+            case add:										//add, sub, mul all produce to the d register
+            case sub:
+            case mul:
+                if(EXMEMlatch.operation.dest == sReg) return 1;
                 break;
-            case 1:										//addi and lw produce to the s2 register
-            case 5:
-                if(MEMlatch.operation.s2 == sReg) return 1;
+            case addi:										//addi and lw produce to the s2 register
+            case lw:
+                if(EXMEMlatch.operation.s2 == sReg) return 1;
                 break;
-            case 4:										//beq, sw and halt produce nothing
-            case 6:
-            case 7:
+            case beq:										//beq, sw and halt produce nothing
+            case sw:
+            case haltSimulation:
                 break;
             default:
                 printf("Op Code not recognized: EX_MEM Latch \n");
                 exit(1);								//This should never be reached
         }
     }
-    if(WBlatch.validBit == 1){
-        switch(WBlatch.operation.op){					//Needs to check against different registers for different instructions
-            case 0:										//add, sub, mul all produce to the d register
-            case 2:
-            case 3:
-                if(WBlatch.operation.dest == sReg) return 1;
+    if(MEMWBlatch.validBit == 1){
+        switch(MEMWBlatch.operation.op){					//Needs to check against different registers for different instructions
+            case add:										//add, sub, mul all produce to the d register
+            case mul:
+            case addi:
+                if(MEMWBlatch.operation.dest == sReg) return 1;
                 break;
-            case 1:										//addi and lw produce to the s2 register
-            case 5:
-                if(WBlatch.operation.s2 == sReg) return 1;
+            case sub:										//addi and lw produce to the s2 register
+            case lw:
+                if(MEMWBlatch.operation.s2 == sReg) return 1;
                 break;
-            case 4:										//beq, sw and halt produce nothing
-            case 6:
-            case 7:
+            case beq:										//beq, sw and halt produce nothing
+            case sw:
+            case haltSimulation:
                 break;
             default:
                 printf("Op Code not recognized: MEM_WB Latch \n");
@@ -411,122 +407,133 @@ int regCheck(int sReg){									//sReg is the register number that is being chec
     }
     return 0;											//If it never catches, the register is fine
 }
-void ID(struct inst){
-    if(idex.operation.op == 7){						//If halt has passed through here, it just auto returns
+void ID(void) {
+    if (IDEXlatch.operation.op == haltSimulation) {                        //If halt has passed through here, it just auto returns
         return;
     }
-    switch(ifid.operation.op){						//Instruction cases are grouped for efficiency because certain instructions have the same actions
-        case 0:										//add
-        case 2:										//sub
-            if(regCheck(ifid.operation.s2) == 1) return;	//Checks s2 for add and sub, these two instructions have the same ID step
-            idex =ifid;
-            idex.operation.s1 = reg[ifid.operation.s1];	//loads s1 into the next latch
-            idex.operation.s2 = reg[ifid.operation.s2];	//loads s2 into the next latch
-            EXdelay = n;							//Set the EXdelay for normal operation delay
-            break;
+    //enum opcode{add, sub, mul, addi, beq, lw, sw, haltSimulation,nop};
+    if ((IFIDlatch.validBit == 1) && (IDEXlatch.validBit== 0)||(IFIDlatch.operation.op==haltSimulation)) {
+        switch (IFIDlatch.operation.op) {                        //Instruction cases are grouped for efficiency because certain instructions have the same actions
+            case add:                                        //add
+            case sub:                                        //sub
+                if (regCheck(IFIDlatch.operation.s2) == 1)
+                    return;    //Checks s2 for add and sub, these two instructions have the same ID step
+                IDEXlatch = IFIDlatch;
+                IDEXlatch.operation.s1 = reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+                EXdelay = n;                            //Set the EXdelay for normal operation delay
+                break;
 
-        case 3:										//mul
-            if(regCheck(ifid.operation.s2) == 1) return;	//Checks s2 for mul, it has a different ID step than add and sub
-            idex = ifid;
-            idex.operation.s1 = reg[ifid.operation.s1];	//loads s1 into the next latch
-            idex.operation.s2 = reg[ifid.operation.s2];	//loads s2 into the next latch
-            EXdelay = m;							//Set the EXdelay for multiplication delay (difference between add and sub for passing to EX)
-            break;
+            case mul:                                        //mul
+                if (regCheck(IFIDlatch.operation.s2) == 1)
+                    return;    //Checks s2 for mul, it has a different ID step than add and sub
+                IDEXlatch = IFIDlatch;
+                IDEXlatch.operation.s1 = reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+                EXdelay = m;                            //Set the EXdelay for multiplication delay (difference between add and sub for passing to EX)
+                break;
 
-        case 4:										//beq
-            if(regCheck(ifid.operation.s2) == 1) return;	//Checks s2 of beq, it has a different ID step than the mul, add and sub
-            //check that im value is in range for 16 bit 2's comp, +/- 32767 (2^15 - 1)
-            if((ifid.operation.im < -32767)||(ifid.operation.im > 32767)){
-                printf("Immediate field out of numerical bounds, %d \n", ifid.operation.im);	//Note we did not just use two assertions because we wanted to print an error message
-                exit(1);							//Halt the code if this error message has been printed
-            }
-            idex = ifid;
-            idex.operation.s1 = reg[ifid.operation.s1];	//loads s1 into the next latch
-            idex.operation.s2 = reg[ifid.operation.s2];	//loads s2 into the next latch
-            Branchflag = 1;						//If it reads a branch, mark branch pending
-            EXdelay = n;							//Set the EXdelay for normal operation delay
-            break;
+            case beq:                                        //beq
+                if (regCheck(IFIDlatch.operation.s2) == 1)
+                    return;    //Checks s2 of beq, it has a different ID step than the mul, add and sub
+                //check that im value is in range for 16 bit 2's comp, +/- 32767 (2^15 - 1)
+                if ((IFIDlatch.operation.im < -32767) || (IFIDlatch.operation.im > 32767)) {
+                    printf("Immediate field out of numerical bounds, %d \n",
+                           IFIDlatch.operation.im);    //Note we did not just use two assertions because we wanted to print an error message
+                    exit(1);                            //Halt the code if this error message has been printed
+                }
+                IDEXlatch = IFIDlatch;
+                IDEXlatch.operation.s1 = reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+                Branchflag = 1;                        //If it reads a branch, mark branch pending
+                EXdelay = n;                            //Set the EXdelay for normal operation delay
+                break;
 
-        case 1:										//addi
-        case 5:										//lw
-            //check that im value is in range for 16 bit 2's comp, +/- 32767 (2^15 - 1)
-            if((ifid.operation.im < -32767)||(ifid.operation.im > 32767)){
-                printf("Immediate field out of numerical bounds, %d \n", ifid.operation.im);	//Note we did not just use two assertions because we wanted to print an error message
-                exit(1);							//Halt the code if this error message has been printed
-            }
-            idex =ifid;
-            idex.operation.s1 = reg[ifid.operation.s1];	//loads s1 into the next latch
-            EXdelay = n;							//Set the EXdelay for normal operation delay
-            break;
+            case addi:                                        //addi
+            case lw:                                        //lw
+                //check that im value is in range for 16 bit 2's comp, +/- 32767 (2^15 - 1)
+                if ((IFIDlatch.operation.im < -32767) || (IFIDlatch.operation.im > 32767)) {
+                    printf("Immediate field out of numerical bounds, %d \n",
+                           IFIDlatch.operation.im);    //Note we did not just use two assertions because we wanted to print an error message
+                    exit(1);                            //Halt the code if this error message has been printed
+                }
+                IDEXlatch = IFIDlatch;
+                IDEXlatch.operation.s1 = reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                EXdelay = n;                            //Set the EXdelay for normal operation delay
+                break;
 
-        case 6:										//sw
-            if(regCheck(ifid.operation.s2) == 1) return;	//Checks s2 of sw, it relies on s2 while addi and lw do not
-            //check that im value is in range for 16 bit 2's comp, +/- 32767 (2^15 - 1)
-            if((ifid.operation.im < -32767)||(ifid.operation.im > 32767)){
-                printf("Immediate field out of numerical bounds, %d \n", ifid.operation.im);	//Note we did not just use two assertions because we wanted to print an error message
-                exit(1);							//Halt the code if this error message has been printed
-            }
-            idex = ifid;
-            idex.operation.s1 = reg[ifid.operation.s1];	//loads s1 into the next latch
-            idex.operation.s2 = reg[ifid.operation.s2];	//loads s2 into the next latch
-            EXdelay = n;							//Set the EXdelay for normal operation delay
-            break;
+            case sw:                                        //sw
+                if (regCheck(IFIDlatch.operation.s2) == 1)
+                    return;    //Checks s2 of sw, it relies on s2 while addi and lw do not
+                //check that im value is in range for 16 bit 2's comp, +/- 32767 (2^15 - 1)
+                if ((IFIDlatch.operation.im < -32767) || (IFIDlatch.operation.im > 32767)) {
+                    printf("Immediate field out of numerical bounds, %d \n",
+                           IFIDlatch.operation.im);    //Note we did not just use two assertions because we wanted to print an error message
+                    exit(1);                            //Halt the code if this error message has been printed
+                }
+                IDEXlatch = IFIDlatch;
+                IDEXlatch.operation.s1 = reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+                EXdelay = n;                            //Set the EXdelay for normal operation delay
+                break;
 
-        case 7:										//halt
-            idex = ifid;
-            EXdelay = 1;							//Set the EXdelay to be 1 for fast propagation
-            return;									//Return so we don't count as useful work or clear the latch
+            case haltSimulation:                                        //halt
+                IDEXlatch = IFIDlatch;
+                EXdelay = 1;                            //Set the EXdelay to be 1 for fast propagation
+                return;                                    //Return so we don't count as useful work or clear the latch
 
-        default:
-            printf("Op Code not recognized: ID Stage \n");
-            exit(1);								//If it doesn't decode one of the 7 possibilities there is an error, should be caught by the parser, but this is a backup
-            return;
+            default:
+                printf("Op Code not recognized: ID Stage \n");
+                exit(1);                                //If it doesn't decode one of the 7 possibilities there is an error, should be caught by the parser, but this is a backup
+
+        }
+
+        IFIDlatch = tempLatch;
+        idUtil++;
     }
-
-    ifid = tempLatch;
-    idUtil ++;
 }
 
 void EX(){
-    if(exdata.operation.op == 7){						//If halt has passed through here, it just auto returns
+    if(EXMEMlatch.operation.op == haltSimulation){//If halt has passed through here, it just auto returns
         return;
     }
-    else if(idex.validBit == 1){						//Check previous latch to see if it can start it's operation
-        if((EXdelay == 1)&&(exdata.validBit == 0)){ 	//Once the delay count down is finished and the latch is ready to receive, compute and push
-            exdata = idex;
-            switch(idex.operation.op){
-                case 0:									//add
-                    exdata.EXresult = idex.operation.s1 + idex.operation.s2;
-                   
+    else if((IDEXlatch.validBit == 1)||(IDEXlatch.operation.op==haltSimulation)){						//Check previous latch to see if it can start it's operation
+        if(((EXdelay == 1)&&(EXMEMlatch.validBit == 0))||(IDEXlatch.operation.op==haltSimulation)){ 	//Once the delay count down is finished and the latch is ready to receive, compute and push
+            EXMEMlatch = IDEXlatch;
+            switch(IDEXlatch.operation.op){
+                case add:									//add
+                    EXMEMlatch.EXresult = IDEXlatch.operation.s1 + IDEXlatch.operation.s2;
+
                     break;
-                case 2:									//sub
-                    exdata.EXresult = idex.operation.s1 - idex.operation.s2;
-                    
+                case sub:									//sub
+                    EXMEMlatch.EXresult = IDEXlatch.operation.s1 - IDEXlatch.operation.s2;
+
                     break;
-                    
-                case 3:									//mul
-                    exdata.EXresult = idex.operation.s1 * idex.operation.s2;	//Assumes that the system is operating at 32 bits so the result will be cast down to the right size
-                    
+
+                case mul:									//mul
+                    EXMEMlatch.EXresult = IDEXlatch.operation.s1 * IDEXlatch.operation.s2;	//Assumes that the system is operating at 32 bits so the result will be cast down to the right size
+
                     break;
-                case 4:
-                    if(idex.operation.s1 == idex.operation.s2){
-                        IFPC = idex.operation.im + idex.PC + 1;	//Advances pc by the immediate value past the pc of the next instruction
+                case beq:
+                    if(IDEXlatch.operation.s1 == IDEXlatch.operation.s2){
+                        IFPC = IDEXlatch.operation.im + IDEXlatch.PC + 1;	//Advances pc by the immediate value past the pc of the next instruction
                     }
                     Branchflag = 2;					//Set to 2 so the IF stage knows not to unfreeze until the next cycle
                     break;
-                case 1:									//addi
-                case 5:									//lw
-                case 6:									//sw
-                    exdata.EXresult = idex.operation.s1 + idex.operation.im;	//Note these three all do the same thing in EX, the results are just handled differently
+                case addi:									//addi
+                case lw:									//lw
+                case sw:									//sw
+                    EXMEMlatch.EXresult = IDEXlatch.operation.s1 + IDEXlatch.operation.im;	//Note these three all do the same thing in EX, the results are just handled differently
                     break;
 
-                case 7:
+                case haltSimulation:
+                    EXMEMlatch=IDEXlatch;
                     return;
                 default:
                     printf("Op Code not recognized: EX stage \n");
                     exit(1);
             }
-            idex = tempLatch;
+            IDEXlatch = tempLatch;
             exUtil++;
         }
         else if(EXdelay != 1){							//Note this is set by the previous stage, so it will never be changed until this stage clears the latch
@@ -571,22 +578,53 @@ void IF(inst ifOp){
 /* if not LW or SW, then just skip MEM and move on to
  * next stage, if LW or SW then wait c cycles;
  */
-void MEM(inst memOp){
-    memOp.mtime++;
-    if(memOp.op==lw){//if LW, 0b100011
-        memUtil++;
-        int accessAdd=reg[memOp.s1]+memOp.im;//accessing address
-        lwresult=LW(accessAdd);//reading data to dest
+void MEM(void){
+    if((EXMEMlatch.validBit==1)&&(MEMWBlatch.validBit==0)||(EXMEMlatch.operation.op==haltSimulation)){
+        switch(EXMEMlatch.operation.op){
+            default: // non-mem op
+                MEMWBlatch=EXMEMlatch;
+                EXMEMlatch=tempLatch;
+            case lw:
+                if(Mdelay==1){
+                    MEMWBlatch=EXMEMlatch;
+                    if(EXMEMlatch.EXresult%4!=0){
+                        printf("Data Alignment Error, %d not divisible by 4 \n", EXMEMlatch.EXresult);
+                        exit(1);
+                    }
+                    MEMWBlatch.EXresult = dMem[EXMEMlatch.EXresult/4];
+                    Mdelay=c;
+                    EXMEMlatch=tempLatch;
+                    memUtil++;
+                }
+                else{
+                    Mdelay--;
+                    memUtil++;
+                    assert(Mdelay>0);
+                }
+                return;
+            case sw:
+                if(Mdelay==1){
+                    MEMWBlatch=EXMEMlatch;
+                    if(EXMEMlatch.EXresult%4!=0){
+                        printf("Data Alignment Error, %d not divisible by 4 \n", EXMEMlatch.EXresult);
+                        exit(1);
+                    }
+                    dMem[EXMEMlatch.EXresult]=reg[EXMEMlatch.operation.s2];
+                    Mdelay=c;
+                    EXMEMlatch=tempLatch;
+                    memUtil++;
+                } else{
+                    Mdelay--;
+                    memUtil++;
+                    assert(Mdelay>0);
+                }
+            case haltSimulation:
+                MEMWBlatch=EXMEMlatch;
+                MEMWBlatch.validBit=1;
+                return;
+        }
 
-    }else if(memOp.op==sw){//if SW, 0b101011
-        memUtil++;
-        int accessAdd=reg[memOp.s1]+memOp.im;//accessing address
-        SW(accessAdd,reg[memOp.s2]);
-
-    }else{//NOT LW or SW, just next stage
-        //nothing
     }
-
 
     return;//dummy return
 }
@@ -610,8 +648,9 @@ void WB(inst wbOp, int data){
 
 /********************Main************************/
 int main (int argc, char *argv[]){
+
     int sim_mode=0;//mode flag, 1 for single-cycle, 0 for batch
-   
+
     int i;//for loop counter
     long mips_reg[REG_NUM];
     long pgm_c=0;//program counter
@@ -636,7 +675,7 @@ int main (int argc, char *argv[]){
         }
         else{
             printf("Wrong sim mode chosen\n");
-            exit(0);
+            exit(1);
         }
 
         m=atoi(argv[2]);
@@ -650,15 +689,15 @@ int main (int argc, char *argv[]){
     else{
         printf("Usage: ./sim-mips -s m n c input_name output_name (single-sysle mode)\n or \n ./sim-mips -b m n c input_name  output_name(batch mode)\n");
         printf("m,n,c stand for number of cycles needed by multiplication, other operation, and memory access, respectively\n");
-        exit(0);
+        exit(1);
     }
     if(input==NULL){
         printf("Unable to open input or output file\n");
-        exit(0);
+        exit(1);
     }
     if(output==NULL){
         printf("Cannot create output file\n");
-        exit(0);
+        exit(1);
     }
     //initialize registers and program counter
     if(sim_mode==1){
@@ -676,21 +715,27 @@ int main (int argc, char *argv[]){
     int MEMPC;//MEM PC pointer
     int WBPC;//WB PC pointer
     int MEMexResult;//MEM EX result
-    int WBvalue;
-    int IFPC=0;//IF PC pointer
+    int WBvalue=0;
+    IFPC=0;//IF PC pointer
 
-   
 
-    latch MEMlatch;//latch to MEM
-    latch WBlatch;//latch to WB
-    latch NMWBlatch;//for those who are not MEM op
-    latch IFIDlatch;//latch to ID
+
+    latch EXMEMlatch=tempLatch;//latch to MEM
+    latch MEMWBlatch=tempLatch;//latch to WB
+    latch IFIDlatch=tempLatch;//latch to ID
+    IFIDlatch=tempLatch;
+    IDEXlatch=tempLatch;
+    memdata=tempLatch;
+
+
+
 
     c=6;
-    inst MEMinst;
-    inst WBinst;
-    inst IFinst;
-    inst realMEM[c];//true mem op array
+
+    inst WBinst = {nop,0,0,0,0,0};
+    inst IFinst = {nop,0,0,0,0,0};
+
+    inst *realMEM=(inst*)malloc(c*sizeof(inst));//true mem op array
     int MEMempty=0;//empty slot pointer
     int MEMtop=0;
 
@@ -699,14 +744,18 @@ int main (int argc, char *argv[]){
     iMem = malloc(512*sizeof(inst));
     char *instruction = (char *) malloc(100*sizeof(char));
     i = 0;
-    while( iMem[i].op!=haltSimulation){
+    int f =1;
+    while(f){
         progScanner(input,instruction);
         regNumberConverter(instruction);
         iMem[i] = parser(instruction);
-        printf( "---- %d--%d--%d--%d--%d\n",iMem[i].op,iMem[i].dest,iMem[i].im,iMem[i].s1,iMem[i].s2);
+        if(iMem[i].op==haltSimulation)
+            f=0;
+       printf( "---- %d--%d--%d--%d--%d\n",iMem[i].op,iMem[i].dest,iMem[i].im,iMem[i].s1,iMem[i].s2);
         i++;
     }
     //////////// main loop
+
     int foo=1;//loop check
     c=4;
     ifUtil=0;
@@ -714,55 +763,28 @@ int main (int argc, char *argv[]){
     exUtil=0;
     memUtil=0;
     wbUtil=0;
+    Mdelay=0;
+    
 
 ///////////////////////////////////////////
+    MEMWBlatch=tempLatch;
     while(foo) {//test while loop
 
         /*
          * WB stage
          */
-        if (WBlatch.validBit) {//if valid, download info
-            WBinst = MEMlatch.operation;//passing inst
-            WBlatch.validBit = 0;//reset valid
-            WBPC = MEMlatch.PC;
-            WBvalue = MEMlatch.EXresult;
+        if (MEMWBlatch.validBit) {//if valid, download info
+            WBinst = EXMEMlatch.operation;//passing inst
+            MEMWBlatch.validBit = 0;//reset valid
+            WBPC = EXMEMlatch.PC;
+            WBvalue = EXMEMlatch.EXresult;
         }
         WB(WBinst, WBvalue);//store and this is the end of the inst
 
-
-
-        /*
-         * MEM stage
-         */
-        MEMlatch=memdata;
-        if (MEMlatch.validBit) {//if valid, download info
-            MEMinst = MEMlatch.operation;//passing inst
-            MEMlatch.validBit = 0;//reset valid
-            MEMPC = MEMlatch.PC;
-            MEMexResult = MEMlatch.EXresult;
-            MEMinst.mtime = 0;//initialize mtime
-        }
-        realMEM[MEMempty] = MEMinst;//insert into the array
-        MEMempty++;
-        if (MEMempty = c) { MEMempty = 0; }//reset
-
-        for (int i = 0; i < c; i++) {//for each
-            if (realMEM[i].op != 999) {//if op valid
-                MEM(realMEM[i]);
-                if ((realMEM[i].mtime == c) && !(WBlatch.validBit)) {//if this inst is finished, then pass on
-                    MEMflag = 1;
-                    WBlatch.operation = MEMinst;
-                    WBlatch.EXresult = MEMexResult;
-                    WBlatch.PC = MEMPC;
-                    WBlatch.validBit = 1;
-                    realMEM[i].op = 999;//invalid this element
-                    MEMtop++;
-                    if (MEMtop = c) { MEMtop = 0; }//reset memtop
-                }
-            }
-
-        }
-
+        /* MEM stage*/
+        MEM();
+        EX();
+        ID();
         /*
          *
          *
@@ -781,13 +803,10 @@ int main (int argc, char *argv[]){
             IFIDlatch.validBit=1;
             IFIDlatch.PC=IFPC;
             IFIDlatch.operation=IFinst;
-            IFPC++;
+
         }else{//if branchflag is set, nop
             IFIDlatch.validBit=0;//just in case, disable this latch
         }
-
-
-        IF(IFinst);//this will set the branchflag
         if(!EOIflag){//if not end of instruction
             IFIDlatch.PC=IFPC;
             IFIDlatch.operation=IFinst;
@@ -795,15 +814,17 @@ int main (int argc, char *argv[]){
         }else{
             IFIDlatch.validBit=0;//disable IFID latch
         }
-        ifid=IFIDlatch;
+
+        IF(IFinst);//this will set the branchflag
+
+        IFIDlatch=IFIDlatch;
         ifUtil++;
 
 
 
         /**********************end*****************************/
-        if((IFIDlatch.validBit)||(idex.validBit)||(MEMlatch.validBit)||(WBlatch.validBit)||!(EOIflag)){
-            if(WBinst.op==haltSimulation)
-            foo=0;//iff all latches disabled, and eoi flag up, then end the loop
+        if( EXMEMlatch.operation.op==haltSimulation){
+            foo=0;
         }
 
 
@@ -811,20 +832,18 @@ int main (int argc, char *argv[]){
         /*********************code 2***************************/
         printf("cycle: %d ",sim_cycle);
         if(sim_mode==1){
+            printf("cycle: %d register value: ",sim_cycle);
             for (i=1;i<REG_NUM;i++){
                 printf("%d  ",mips_reg[i]);
             }
+            printf("program counter: %d\n",pgm_c);
+            printf("press ENTER to continue\n");
+            while(getchar() != '\n');
         }
-        printf("%d\n",pgm_c);
-        pgm_c+=4;
+
         sim_cycle+=1;
-        test_counter++;
-        printf("press ENTER to continue\n");
-        while(getchar() != '\n');
-        if(sim_cycle=10){
-            foo=0;
-        }
     }
+
 
     //add the following code to the end of the simulation,
     //to output statistics in batch mode
@@ -845,5 +864,10 @@ int main (int argc, char *argv[]){
     //close input and output files at the end of the simulation
     fclose(input);
     fclose(output);
-    return 0;
+    free(iMem);
+    free(realMEM);
+    free(dMem);
+    free(reg);
+    free(instruction);
+    return 2;
 }
