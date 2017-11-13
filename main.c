@@ -69,6 +69,7 @@ int EOIflag;
 int c, m, n;
 int IFPC;
 int Mdelay;
+int IFdelay;
 
 
 
@@ -560,15 +561,37 @@ void SW(int saveAddress,int data){
 
 ////********************Todd**********************////
 
-void IF(inst ifOp){
-    if(ifOp.op==beq){//if brach, then no op before this pass EX
-        ifUtil++;
-        Branchflag=1;//branch is here
+void IF(void){
+    if(IFIDlatch.operation.op==haltSimulation){//if halt
+        return;
     }
-    if(ifOp.op==haltSimulation){
-        EOIflag=1;
-    }
-    return;
+    if((IFIDlatch.validBit==0)&&(!Branchflag)){
+        if(iMem[IFPC].op==haltSimulation){
+            IFIDlatch.validBit=1;
+            IFIDlatch.operation=iMem[IFPC];
+            IFIDlatch.PC=IFPC;
+        }
+        else if(IFdelay==1){//if finished
+            IFIDlatch.validBit=1;
+            IFIDlatch.operation=iMem[IFPC];
+            IFIDlatch.PC=IFPC;
+
+            IFPC++;
+            if(IFPC>511){//if to the end then stay
+                IFPC=511;
+            }
+            ifUtil++;
+            IFdelay=c;
+        }
+        else{       //counting
+            IFdelay--;
+            ifUtil++;
+            assert(IFdelay>0);
+        }
+    } else if(Branchflag==2){
+            Branchflag=0;
+
+         }
 }
 
 
@@ -723,19 +746,11 @@ int main (int argc, char *argv[]){
     IFPC=0;//IF PC pointer
 
 
-
-
-
-
-
-    c=6;
-
     inst WBinst = {nop,0,0,0,0,0};
     inst IFinst = {nop,0,0,0,0,0};
 
     inst *realMEM=(inst*)malloc(c*sizeof(inst));//true mem op array
-    int MEMempty=0;//empty slot pointer
-    int MEMtop=0;
+
 
 
     //store instruction to instruction memory
@@ -762,6 +777,7 @@ int main (int argc, char *argv[]){
     memUtil=0;
     wbUtil=0;
     Mdelay=c;
+    IFdelay=c;
 
     
 
@@ -773,10 +789,10 @@ int main (int argc, char *argv[]){
          * WB stage
          */
         if (MEMWBlatch.validBit) {//if valid, download info
-            WBinst = EXMEMlatch.operation;//passing inst
+            WBinst = MEMWBlatch.operation;//passing inst
             MEMWBlatch.validBit = 0;//reset valid
-            WBPC = EXMEMlatch.PC;
-            WBvalue = EXMEMlatch.EXresult;
+            WBPC = MEMWBlatch.PC;
+            WBvalue = MEMWBlatch.EXresult;
         }
         WB(WBinst, WBvalue);//store and this is the end of the inst
 
@@ -784,32 +800,10 @@ int main (int argc, char *argv[]){
         MEM();
         EX();
         ID();
-        /*
-         *
-         *
-         * All the other stages
-         *
-         *
-         *
-         */
+        IF;//this will set the branchflag
 
 
-        /*
-         * IF stage
-         */
-        if ((!Branchflag)&&(!EOIflag)){//if branchflag is not set, then read next
-            IFinst = iMem[IFPC];
-            IFIDlatch.validBit=1;
-            IFIDlatch.PC=IFPC;
-            IFIDlatch.operation=IFinst;
-            IFPC++;
-        }
 
-
-        IF(IFinst);//this will set the branchflag
-
-        IFIDlatch=IFIDlatch;
-        ifUtil++;
 
 
 
