@@ -46,7 +46,7 @@ latch MEMWBlatch={0, 0, {nop, 0, 0, 0, 0,}, 0};//latch to WB
 
 int c;//how many cycle MEM need, give by I/P
 inst* iMem;
-long mips_reg[REG_NUM];
+int mips_reg[REG_NUM ];
 int* dMem;
 
 const latch tempLatch = (latch) {0, 0, {nop, 0, 0, 0, 0,}, 0};
@@ -324,9 +324,9 @@ inst parser(char *instruction){
                 printf("register no $");
                 exit(1);
             }
-            ninst.dest = strtol(strtok(s1,"$"),NULL,10);
-            ninst.s1 = strtol(strtok(s2,"$"),NULL,10);
-            ninst.s2 = strtol(strtok(s3,"$"),NULL,10);
+            ninst.dest = (int)strtol(strtok(s1,"$"),NULL,10); //dest
+            ninst.s1 = (int)strtol(strtok(s2,"$"),NULL,10);   //%s
+            ninst.s2 = (int)strtol(strtok(s3,"$"),NULL,10);  //$t
             return ninst;
         case 'I':
             if (strstr(s1,"$")==NULL||strstr(s2,"$")==NULL){// check registor has $
@@ -337,9 +337,9 @@ inst parser(char *instruction){
                 printf("invalid im\n");
                 exit(1);
             }
-            ninst.s1 = strtol(strtok(s2,"$"),NULL,10);
-            ninst.s2 = strtol(strtok(s1,"$"),NULL,10);
-            ninst.im = strtol(strtok(s3,"$"),NULL,10);
+            ninst.s1 = (int)strtol(strtok(s2,"$"),NULL,10);
+            ninst.s2 = (int)strtol(strtok(s1,"$"),NULL,10); //s2 is dest
+            ninst.im = (int)strtol(strtok(s3,"$"),NULL,10);
             return ninst;
         case 'M':
             if (strstr(s1,"$")==NULL||strstr(s3,"$")==NULL){// check registor has $
@@ -350,9 +350,9 @@ inst parser(char *instruction){
                 printf("invalid im\n");
                 exit(1);
             }
-            ninst.s1 = strtol(strtok(s3,"$"),NULL,10);
-            ninst.s2 = strtol(strtok(s1,"$"),NULL,10);
-            ninst.im = strtol(strtok(s2,"$"),NULL,10 );
+            ninst.s1 = (int)strtol(strtok(s3,"$"),NULL,10);
+            ninst.s2 = (int)strtol(strtok(s1,"$"),NULL,10);  //dest
+            ninst.im =(int) strtol(strtok(s2,"$"),NULL,10 );
 
             return ninst;
         case 'S':
@@ -391,10 +391,10 @@ int regCheck(int sReg){									//sReg is the register number that is being chec
         switch(MEMWBlatch.operation.op){					//Needs to check against different registers for different instructions
             case add:										//add, sub, mul all produce to the d register
             case mul:
-            case addi:
+            case sub:
                 if(MEMWBlatch.operation.dest == sReg) return 1;
                 break;
-            case sub:										//addi and lw produce to the s2 register
+            case addi:										//addi and lw produce to the s2 register
             case lw:
                 if(MEMWBlatch.operation.s2 == sReg) return 1;
                 break;
@@ -422,8 +422,8 @@ void ID(void) {
                 if (regCheck(IFIDlatch.operation.s2) == 1)
                     return;    //Checks s2 for add and sub, these two instructions have the same ID step
                 IDEXlatch = IFIDlatch;
-                IDEXlatch.operation.s1 = mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
-                IDEXlatch.operation.s2 = mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+                IDEXlatch.operation.s1 =(int) mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 =(int) mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
                 EXdelay = n;                            //Set the EXdelay for normal operation delay
                 break;
 
@@ -431,8 +431,8 @@ void ID(void) {
                 if (regCheck(IFIDlatch.operation.s2) == 1)
                     return;    //Checks s2 for mul, it has a different ID step than add and sub
                 IDEXlatch = IFIDlatch;
-                IDEXlatch.operation.s1 = mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
-                IDEXlatch.operation.s2 = mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+                IDEXlatch.operation.s1 = (int)mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = (int)mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
                 EXdelay = m;                            //Set the EXdelay for multiplication delay (difference between add and sub for passing to EX)
                 break;
 
@@ -446,8 +446,8 @@ void ID(void) {
                     exit(1);                            //Halt the code if this error message has been printed
                 }
                 IDEXlatch = IFIDlatch;
-                IDEXlatch.operation.s1 = mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
-                IDEXlatch.operation.s2 = mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+                IDEXlatch.operation.s1 = (int)mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = (int)mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
                 Branchflag = 1;                        //If it reads a branch, mark branch pending
                 EXdelay = n;                            //Set the EXdelay for normal operation delay
                 break;
@@ -461,7 +461,7 @@ void ID(void) {
                     exit(1);                            //Halt the code if this error message has been printed
                 }
                 IDEXlatch = IFIDlatch;
-                IDEXlatch.operation.s1 = mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s1 = (int)mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
                 EXdelay = n;                            //Set the EXdelay for normal operation delay
                 break;
 
@@ -475,8 +475,8 @@ void ID(void) {
                     exit(1);                            //Halt the code if this error message has been printed
                 }
                 IDEXlatch = IFIDlatch;
-                IDEXlatch.operation.s1 = mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
-                IDEXlatch.operation.s2 = mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+                IDEXlatch.operation.s1 = (int)mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = (int)mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
                 EXdelay = n;                            //Set the EXdelay for normal operation delay
                 break;
 
@@ -493,6 +493,7 @@ void ID(void) {
         IFIDlatch = tempLatch;
         idUtil++;
     }
+    return;
 }
 
 void EX(){
@@ -543,18 +544,11 @@ void EX(){
             assert(EXdelay > -0); 						//Catch if this decreases too much
         }
     }
+    return;
 }
 
 /*****************Support Functions***************/
 
-int LW(int address){
-    return dMem[address];
-}
-
-void SW(int saveAddress,int data){
-    dMem[saveAddress]=data;
-    return;
-}
 
 
 
@@ -589,8 +583,8 @@ void IF(void){
         }
     } else if(Branchflag==2){
             Branchflag=0;
-
          }
+    return;
 }
 
 
@@ -616,7 +610,9 @@ void MEM(void){
                         printf("Data Alignment Error, %d not divisible by 4 \n", EXMEMlatch.EXresult);
                         exit(1);
                     }
+                    printf("=========\nsw place=%d\n",MEMWBlatch.EXresult);
                     MEMWBlatch.EXresult = dMem[EXMEMlatch.EXresult/4];
+                    printf("=========\nsw data=%d\n",MEMWBlatch.EXresult);
                     Mdelay=c;
                     EXMEMlatch=tempLatch;
                     memUtil++;
@@ -635,7 +631,13 @@ void MEM(void){
                         printf("Data Alignment Error, %d not divisible by 4 \n", EXMEMlatch.EXresult);
                         exit(1);
                     }
-                    dMem[EXMEMlatch.EXresult]=mips_reg[EXMEMlatch.operation.s2];
+                    printf("=========\nsw place=%d \n",(MEMWBlatch.operation.s2+EXMEMlatch.operation.im));
+                    int place =(MEMWBlatch.operation.s2+EXMEMlatch.operation.im);
+                    int Data=mips_reg[EXMEMlatch.operation.s2];
+                    printf("place=%d,Data=%d\n",place,Data);
+                    printf("DMEM=%d",dMem[8*sizeof(int)]);
+                    dMem[place]=Data;
+                   // printf("=========\nsw data=%d\n",MEMWBlatch.EXresult);
                     Mdelay=c;
                     EXMEMlatch=tempLatch;
                     memUtil++;
@@ -644,6 +646,7 @@ void MEM(void){
                     memUtil++;
                     assert(Mdelay>0);
                 }
+                return;
             case haltSimulation:
                 MEMWBlatch=EXMEMlatch;
                 MEMWBlatch.validBit=1;
@@ -664,6 +667,7 @@ void WB(inst wbOp, int data){
     }
     else if((wbOp.op==addi)||(wbOp.op==lw)){//storing to $t(s2)
         mips_reg[wbOp.s2]=data;
+        printf("\n---------op=%d, dest=%d, data=%d\n",(int)wbOp.op,wbOp.s2,data);
         wbUtil++;
     }
     return;
@@ -725,17 +729,25 @@ int main (int argc, char *argv[]){
         printf("Cannot create output file\n");
         exit(1);
     }
+
     //initialize registers and program counter
-    if(sim_mode==1){
+
         for (i=0;i<REG_NUM;i++){
             mips_reg[i]=0;
         }
-    }
+
 
     //start your code from here
-    dMem=(int *)malloc(sizeof(int)*512);
+    dMem=(int *)malloc(sizeof(int)*512);            //mallocing int array
+
     iMem=(inst *)malloc(512* sizeof(inst));
-  //  mips_reg=(int *)malloc(32* sizeof(int));
+
+
+    //********intialize dMem*************//
+    for(int a; a<511; a++){
+        dMem[a]=0;
+    }
+
 //    mips_reg[0]=0;//cant change
 
     int MEMPC;//MEM PC pointer
@@ -780,9 +792,15 @@ int main (int argc, char *argv[]){
 
 
 
+
 ///////////////////////////////////////////
     MEMWBlatch=tempLatch;
     while(foo) {//test while loop
+
+
+
+
+
         if( MEMWBlatch.operation.op==haltSimulation){
             foo=0;
         }
@@ -795,7 +813,7 @@ int main (int argc, char *argv[]){
             WBPC = MEMWBlatch.PC;
             WBvalue = MEMWBlatch.EXresult;
         }
-        WB(WBinst, WBvalue);//store and this is the end of the inst
+        WB(WBinst, MEMWBlatch.EXresult);//store and this is the end of the inst
 
         /* MEM stage*/
         MEM();
