@@ -565,7 +565,7 @@ void IF(void){
     if(IFIDlatch.operation.op==haltSimulation){//if halt
         return;
     }
-    if((IFIDlatch.validBit==0)&&(!Branchflag)){
+    if((IFIDlatch.validBit==0)&&(Branchflag==0)){
         if(iMem[IFPC].op==haltSimulation){
             IFIDlatch.validBit=1;
             IFIDlatch.operation=iMem[IFPC];
@@ -800,7 +800,7 @@ int main (int argc, char *argv[]){
         MEM();
         EX();
         ID();
-        IF;//this will set the branchflag
+        IF();//this will set the branchflag
 
 
 
