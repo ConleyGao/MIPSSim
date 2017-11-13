@@ -107,6 +107,38 @@ char *my_strcat(char *dest, const char *src)
     return dest;
 }
 
+char *my_strstr(string, substring)
+        register char *string;	/* String to search. */
+        char *substring;		/* Substring to try to find in string. */
+{
+    register char *a, *b;
+
+    /* First scan quickly through the two strings looking for a
+     * single-character match.  When it's found, then compare the
+     * rest of the substring.
+     */
+
+    b = substring;
+    if (*b == 0) {
+        return string;
+    }
+    for ( ; *string != 0; string += 1) {
+        if (*string != *b) {
+            continue;
+        }
+        a = string;
+        while (1) {
+            if (*b == 0) {
+                return string;
+            }
+            if (*a++ != *b++) {
+                break;
+            }
+        }
+        b = substring;
+    }
+    return NULL;
+}
 
 int Pcheck ( char * ist){
     int lcount =0;
@@ -114,13 +146,13 @@ int Pcheck ( char * ist){
     char *tmp1 = ist;
     char * tmp2 = ist;
     //count "("
-    while(tmp1 = strstr(tmp1, "("))
+    while(tmp1 = my_strstr(tmp1, "("))
     {
         lcount++;
         tmp1++;
     }
     //count ")"
-    while(tmp2 = strstr(tmp2, ")"))
+    while(tmp2 = my_strstr(tmp2, ")"))
     {
         rcount++;
         tmp2++;
@@ -139,7 +171,7 @@ char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
             printf("Mismatch parenthese exiting ");
             exit(1);
         }
-      //  printf("String input is %s \n", ist);
+        //  printf("String input is %s \n", ist);
 
         // ///////////////remove spaces and comma
         /* get the first token */
@@ -150,7 +182,7 @@ char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
         while( token != NULL ) {
             my_strcat(instruction, " ");
             my_strcat(instruction, token);
-           // printf( "----- %s\n", instruction );
+            // printf( "----- %s\n", instruction );
 
             token = strtok(NULL,", \t\r\n()" );
         }
@@ -268,7 +300,7 @@ char *regNumberConverter(char * instruction){
             my_strcat(instruction, " ");
             my_strcat(instruction, "$31");
         }else if(atoi(token)>31){
-            if (strstr(token,"$")!=NULL) {
+            if (my_strstr(token,"$")!=NULL) {
                 printf("Register out of bounds, %d is higher than 31 \n", atoi(token));
                 exit(1);
             }
@@ -340,7 +372,7 @@ inst parser(char *instruction){
             printf("Illegal opcode %s\n",op);
             exit(1);
         case 'R':
-            if (strstr(s1,"$")==NULL||strstr(s2,"$")==NULL||strstr(s3,"$")==NULL){  // check registor has $
+            if (my_strstr(s1,"$")==NULL||my_strstr(s2,"$")==NULL||my_strstr(s3,"$")==NULL){  // check registor has $
                 printf("register no $");
                 exit(1);
             }
@@ -349,7 +381,7 @@ inst parser(char *instruction){
             ninst.s2 = strtol(strtok(s3,"$"),NULL,10);
             return ninst;
         case 'I':
-            if (strstr(s1,"$")==NULL||strstr(s2,"$")==NULL){// check registor has $
+            if (my_strstr(s1,"$")==NULL||my_strstr(s2,"$")==NULL){// check registor has $
                 printf("register no $\n");
                 exit(1);
             }
@@ -362,7 +394,7 @@ inst parser(char *instruction){
             ninst.im = strtol(strtok(s3,"$"),NULL,10);
             return ninst;
         case 'M':
-            if (strstr(s1,"$")==NULL||strstr(s3,"$")==NULL){// check registor has $
+            if (my_strstr(s1,"$")==NULL||my_strstr(s3,"$")==NULL){// check registor has $
                 printf("register no $\n");
                 exit(1);
             }
@@ -609,9 +641,9 @@ void IF(void){
             assert(IFdelay>0);
         }
     } else if(Branchflag==2){
-            Branchflag=0;
+        Branchflag=0;
 
-         }
+    }
 }
 
 
@@ -756,7 +788,7 @@ int main (int argc, char *argv[]){
     //start your code from here
     dMem=(int *)malloc(sizeof(int)*512);
     iMem=(inst *)malloc(512* sizeof(inst));
-  //  mips_reg=(int *)malloc(32* sizeof(int));
+    //  mips_reg=(int *)malloc(32* sizeof(int));
 //    mips_reg[0]=0;//cant change
 
     int MEMPC;//MEM PC pointer
@@ -784,7 +816,7 @@ int main (int argc, char *argv[]){
         iMem[i] = parser(instruction);
         if(iMem[i].op==haltSimulation)
             f=0;
-       printf( "---- %d--%d--%d--%d--%d\n",iMem[i].op,iMem[i].dest,iMem[i].im,iMem[i].s1,iMem[i].s2);
+        printf( "---- %d--%d--%d--%d--%d\n",iMem[i].op,iMem[i].dest,iMem[i].im,iMem[i].s1,iMem[i].s2);
         i++;
     }
     //////////// main loop
@@ -799,7 +831,7 @@ int main (int argc, char *argv[]){
     Mdelay=c;
     IFdelay=c;
 
-    
+
 
 ///////////////////////////////////////////
     MEMWBlatch=tempLatch;
