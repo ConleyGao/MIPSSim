@@ -106,7 +106,13 @@ char *my_strcat(char *dest, const char *src)
     dest[i+j] = '\0';
     return dest;
 }
-
+char *my_strcpy(char *s1, const char *s2)
+{
+    char *s = s1;
+    while ((*s++ = *s2++) != 0)
+        ;
+    return (s1);
+}
 char *my_strstr(string, substring)
         register char *string;	/* String to search. */
         char *substring;		/* Substring to try to find in string. */
@@ -176,7 +182,7 @@ char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
         // ///////////////remove spaces and comma
         /* get the first token */
         token = strtok(ist, ", \t\r\n()");
-        strcpy(instruction,token);
+        my_strcpy(instruction,token);
         token = strtok(NULL, ", \t\r\n()");
         /* walk through other tokens */
         while( token != NULL ) {
@@ -197,7 +203,7 @@ char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
 char *regNumberConverter(char * instruction){
     char *token;
     char *ist = (char *) malloc(100*sizeof(char));
-    strcpy(ist, instruction);
+    my_strcpy(ist, instruction);
     *instruction ='\0';
     token = strtok(ist, " \r\n");
     //*instruction = '\0';
@@ -337,32 +343,32 @@ inst parser(char *instruction){
         type ="R";
         ninst.op = add;
     }else if(my_strcmp(op,"sub")==0){
-        //strcpy(instruction,"sub");
+        //my_strcpy(instruction,"sub");
         type ="R";
         ninst.op = sub;
     }else if(my_strcmp(op,"mul")==0){
-        //strcpy(instruction,"mul");
+        //my_strcpy(instruction,"mul");
         type ="R";
         ninst.op = mul;
     }else if(my_strcmp(op,"addi")==0){
-        //strcpy(instruction,"addi");
+        //my_strcpy(instruction,"addi");
         type ="I";
         ninst.op = addi;
     }else if(my_strcmp(op,"beq")==0){
-        // strcpy(instruction,"beq");
+        // my_strcpy(instruction,"beq");
         type ="I";
         ninst.op = beq;
     }else if(my_strcmp(op,"lw")==0){
         type ="M";
-        // strcpy(instruction,"lw");
+        // my_strcpy(instruction,"lw");
         ninst.op = lw;
     }else if(my_strcmp(op,"sw")==0){
         type ="M";
-        //strcpy(instruction,"sw");
+        //my_strcpy(instruction,"sw");
         ninst.op = sw;
     }else if(my_strcmp(op,"haltSimulation")==0) {
         type ="S";
-        //strcpy(instruction,"haltSimulation");
+        //my_strcpy(instruction,"haltSimulation");
         ninst.op = haltSimulation;
     }
 // create struct base on type
