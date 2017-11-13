@@ -1,5 +1,5 @@
 // List the full names of ALL group members at the top of your code.
-// Group Members: Gongtao Yang,
+// Group Members: Gongtao Yang, Kai Qian, Conley Gao
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +46,9 @@ latch MEMWBlatch={0, 0, {nop, 0, 0, 0, 0,}, 0};//latch to WB
 
 int c;//how many cycle MEM need, give by I/P
 inst* iMem;
+
 int mips_reg[REG_NUM ];
+
 int* dMem;
 
 const latch tempLatch = (latch) {0, 0, {nop, 0, 0, 0, 0,}, 0};
@@ -88,19 +90,77 @@ char *progScanner(FILE *ipf, char * istbuff ){
         printf("String input is %s \n", istbuff);
 /**********************InputProcess************************/
 //check matching "()"
+int my_strcmp (const char * s1, const char * s2)
+{
+    for(; *s1 == *s2; ++s1, ++s2)
+        if(*s1 == 0)
+            return 0;
+    return *(unsigned char *)s1 < *(unsigned char *)s2 ? -1 : 1;
+}
+
+char *my_strcat(char *dest, const char *src)
+{
+    size_t i,j;
+    for (i = 0; dest[i] != '\0'; i++)
+        ;
+    for (j = 0; src[j] != '\0'; j++)
+        dest[i+j] = src[j];
+    dest[i+j] = '\0';
+    return dest;
+}
+char *my_strcpy(char *s1, const char *s2)
+{
+    char *s = s1;
+    while ((*s++ = *s2++) != 0)
+        ;
+    return (s1);
+}
+char *my_strstr(string, substring)
+        register char *string;	/* String to search. */
+        char *substring;		/* Substring to try to find in string. */
+{
+    register char *a, *b;
+
+    /* First scan quickly through the two strings looking for a
+     * single-character match.  When it's found, then compare the
+     * rest of the substring.
+     */
+
+    b = substring;
+    if (*b == 0) {
+        return string;
+    }
+    for ( ; *string != 0; string += 1) {
+        if (*string != *b) {
+            continue;
+        }
+        a = string;
+        while (1) {
+            if (*b == 0) {
+                return string;
+            }
+            if (*a++ != *b++) {
+                break;
+            }
+        }
+        b = substring;
+    }
+    return NULL;
+}
+
 int Pcheck ( char * ist){
     int lcount =0;
     int rcount =0;
     char *tmp1 = ist;
     char * tmp2 = ist;
     //count "("
-    while(tmp1 = strstr(tmp1, "("))
+    while(tmp1 = my_strstr(tmp1, "("))
     {
         lcount++;
         tmp1++;
     }
     //count ")"
-    while(tmp2 = strstr(tmp2, ")"))
+    while(tmp2 = my_strstr(tmp2, ")"))
     {
         rcount++;
         tmp2++;
@@ -119,18 +179,20 @@ char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
             printf("Mismatch parenthese exiting ");
             exit(1);
         }
-      //  printf("String input is %s \n", ist);
+
 
         // ///////////////remove spaces and comma
         /* get the first token */
         token = strtok(ist, ", \t\r\n()");
-        strcpy(instruction,token);
+        my_strcpy(instruction,token);
         token = strtok(NULL, ", \t\r\n()");
         /* walk through other tokens */
         while( token != NULL ) {
-            strcat(instruction, " ");
-            strcat(instruction, token);
-           // printf( "----- %s\n", instruction );
+
+            my_strcat(instruction, " ");
+            my_strcat(instruction, token);
+            // printf( "----- %s\n", instruction );
+
 
             token = strtok(NULL,", \t\r\n()" );
         }
@@ -145,120 +207,120 @@ char *progScanner(FILE *ipf, char* instruction){//,char *ist ){
 char *regNumberConverter(char * instruction){
     char *token;
     char *ist = (char *) malloc(100*sizeof(char));
-    strcpy(ist, instruction);
+    my_strcpy(ist, instruction);
     *instruction ='\0';
     token = strtok(ist, " \r\n");
     //*instruction = '\0';
     /* walk through other tokens */
     while( token != NULL ) {
-        if((strcmp(token,"$zero")==0)||(strcmp(token,"$0")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$0");
-        }else if((strcmp(token,"$at")==0)||(strcmp(token,"$1")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$1");
-        }else if((strcmp(token,"$v0")==0)||(strcmp(token,"$2")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$2");
-        }else if((strcmp(token,"$v1")==0)||(strcmp(token,"$3")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$3");
-        }else if((strcmp(token,"$a0")==0)||(strcmp(token,"$4")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$4");
-        }else if((strcmp(token,"$a1")==0)||(strcmp(token,"$5")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$5");
-        }else if((strcmp(token,"$a2")==0)||(strcmp(token,"$6")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$6");
-        }else if((strcmp(token,"$a3")==0)||(strcmp(token,"$7")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$7");
-        }else if((strcmp(token,"$t0")==0)||(strcmp(token,"$8")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$8");
-        }else if((strcmp(token,"$t1")==0)||(strcmp(token,"$9")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$9");
-        }else if((strcmp(token,"$t2")==0)||(strcmp(token,"$10")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$10");
-        }else if((strcmp(token,"$t3")==0)||(strcmp(token,"$11")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$11");
-        }else if((strcmp(token,"$t4")==0)||(strcmp(token,"$12")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$12");
-        }else if((strcmp(token,"$t5")==0)||(strcmp(token,"$13")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$13");
-        }else if((strcmp(token,"$t6")==0)||(strcmp(token,"$14")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$14");
-        }else if((strcmp(token,"$t7")==0)||(strcmp(token,"$15")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$15");
-        }else if((strcmp(token,"$s0")==0)||(strcmp(token,"$16")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$16");
-        }else if((strcmp(token,"$s1")==0L)||(strcmp(token,"$17")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$17");
-        }else if((strcmp(token,"$s2")==0)||(strcmp(token,"$18")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$18");
-        }else if((strcmp(token,"$s3")==0)||(strcmp(token,"$19")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$19");
-        }else if((strcmp(token,"$s4")==0)||(strcmp(token,"$20")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$20");
-        }else if((strcmp(token,"$s5")==0)||(strcmp(token,"$21")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$21");
-        }else if((strcmp(token,"$s6")==0)||(strcmp(token,"$22")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$22");
-        }else if((strcmp(token,"$s7")==0)||(strcmp(token,"$23")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$23");
-        }else if((strcmp(token,"$t8")==0)||(strcmp(token,"$24")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$24");
-        }else if((strcmp(token,"$t9")==0)||(strcmp(token,"$25")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$25");
-        }else if((strcmp(token,"$k0")==0)||(strcmp(token,"$26")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$26");
-        }else if((strcmp(token,"$k1")==0)||(strcmp(token,"$27")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$27");
-        }else if((strcmp(token,"$gp")==0)||(strcmp(token,"$28")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$28");
-        }else if((strcmp(token,"$sp")==0)||(strcmp(token,"$29")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$29");
-        }else if((strcmp(token,"$fp")==0)||(strcmp(token,"$30")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$30");
-        }else if((strcmp(token,"$ra")==0)||(strcmp(token,"$31")==0)){
-            strcat(instruction, " ");
-            strcat(instruction, "$31");
+        if((my_strcmp(token,"$zero")==0)||(my_strcmp(token,"$0")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$0");
+        }else if((my_strcmp(token,"$at")==0)||(my_strcmp(token,"$1")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$1");
+        }else if((my_strcmp(token,"$v0")==0)||(my_strcmp(token,"$2")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$2");
+        }else if((my_strcmp(token,"$v1")==0)||(my_strcmp(token,"$3")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$3");
+        }else if((my_strcmp(token,"$a0")==0)||(my_strcmp(token,"$4")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$4");
+        }else if((my_strcmp(token,"$a1")==0)||(my_strcmp(token,"$5")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$5");
+        }else if((my_strcmp(token,"$a2")==0)||(my_strcmp(token,"$6")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$6");
+        }else if((my_strcmp(token,"$a3")==0)||(my_strcmp(token,"$7")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$7");
+        }else if((my_strcmp(token,"$t0")==0)||(my_strcmp(token,"$8")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$8");
+        }else if((my_strcmp(token,"$t1")==0)||(my_strcmp(token,"$9")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$9");
+        }else if((my_strcmp(token,"$t2")==0)||(my_strcmp(token,"$10")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$10");
+        }else if((my_strcmp(token,"$t3")==0)||(my_strcmp(token,"$11")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$11");
+        }else if((my_strcmp(token,"$t4")==0)||(my_strcmp(token,"$12")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$12");
+        }else if((my_strcmp(token,"$t5")==0)||(my_strcmp(token,"$13")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$13");
+        }else if((my_strcmp(token,"$t6")==0)||(my_strcmp(token,"$14")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$14");
+        }else if((my_strcmp(token,"$t7")==0)||(my_strcmp(token,"$15")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$15");
+        }else if((my_strcmp(token,"$s0")==0)||(my_strcmp(token,"$16")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$16");
+        }else if((my_strcmp(token,"$s1")==0L)||(my_strcmp(token,"$17")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$17");
+        }else if((my_strcmp(token,"$s2")==0)||(my_strcmp(token,"$18")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$18");
+        }else if((my_strcmp(token,"$s3")==0)||(my_strcmp(token,"$19")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$19");
+        }else if((my_strcmp(token,"$s4")==0)||(my_strcmp(token,"$20")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$20");
+        }else if((my_strcmp(token,"$s5")==0)||(my_strcmp(token,"$21")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$21");
+        }else if((my_strcmp(token,"$s6")==0)||(my_strcmp(token,"$22")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$22");
+        }else if((my_strcmp(token,"$s7")==0)||(my_strcmp(token,"$23")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$23");
+        }else if((my_strcmp(token,"$t8")==0)||(my_strcmp(token,"$24")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$24");
+        }else if((my_strcmp(token,"$t9")==0)||(my_strcmp(token,"$25")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$25");
+        }else if((my_strcmp(token,"$k0")==0)||(my_strcmp(token,"$26")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$26");
+        }else if((my_strcmp(token,"$k1")==0)||(my_strcmp(token,"$27")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$27");
+        }else if((my_strcmp(token,"$gp")==0)||(my_strcmp(token,"$28")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$28");
+        }else if((my_strcmp(token,"$sp")==0)||(my_strcmp(token,"$29")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$29");
+        }else if((my_strcmp(token,"$fp")==0)||(my_strcmp(token,"$30")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$30");
+        }else if((my_strcmp(token,"$ra")==0)||(my_strcmp(token,"$31")==0)){
+            my_strcat(instruction, " ");
+            my_strcat(instruction, "$31");
         }else if(atoi(token)>31){
-            if (strstr(token,"$")!=NULL) {
+            if (my_strstr(token,"$")!=NULL) {
                 printf("Register out of bounds, %d is higher than 31 \n", atoi(token));
                 exit(1);
             }
             else {
-                strcat(instruction, " ");
-                strcat(instruction,token);
+                my_strcat(instruction, " ");
+                my_strcat(instruction,token);
             }
         }else {
-            strcat(instruction, " ");
-            strcat(instruction,token);
+            my_strcat(instruction, " ");
+            my_strcat(instruction,token);
         }
 
 
@@ -280,37 +342,37 @@ inst parser(char *instruction){
     s2 =strtok (NULL, " ");
     s3 =strtok (NULL, " \r\n");
 // check format
-    if(strcmp(op,"add")==0){
+    if(my_strcmp(op,"add")==0){
         //trcpy(instruction,"add");
         type ="R";
         ninst.op = add;
-    }else if(strcmp(op,"sub")==0){
-        //strcpy(instruction,"sub");
+    }else if(my_strcmp(op,"sub")==0){
+        //my_strcpy(instruction,"sub");
         type ="R";
         ninst.op = sub;
-    }else if(strcmp(op,"mul")==0){
-        //strcpy(instruction,"mul");
+    }else if(my_strcmp(op,"mul")==0){
+        //my_strcpy(instruction,"mul");
         type ="R";
         ninst.op = mul;
-    }else if(strcmp(op,"addi")==0){
-        //strcpy(instruction,"addi");
+    }else if(my_strcmp(op,"addi")==0){
+        //my_strcpy(instruction,"addi");
         type ="I";
         ninst.op = addi;
-    }else if(strcmp(op,"beq")==0){
-        // strcpy(instruction,"beq");
+    }else if(my_strcmp(op,"beq")==0){
+        // my_strcpy(instruction,"beq");
         type ="I";
         ninst.op = beq;
-    }else if(strcmp(op,"lw")==0){
+    }else if(my_strcmp(op,"lw")==0){
         type ="M";
-        // strcpy(instruction,"lw");
+        // my_strcpy(instruction,"lw");
         ninst.op = lw;
-    }else if(strcmp(op,"sw")==0){
+    }else if(my_strcmp(op,"sw")==0){
         type ="M";
-        //strcpy(instruction,"sw");
+        //my_strcpy(instruction,"sw");
         ninst.op = sw;
-    }else if(strcmp(op,"haltSimulation")==0) {
+    }else if(my_strcmp(op,"haltSimulation")==0) {
         type ="S";
-        //strcpy(instruction,"haltSimulation");
+        //my_strcpy(instruction,"haltSimulation");
         ninst.op = haltSimulation;
     }
 // create struct base on type
@@ -320,7 +382,7 @@ inst parser(char *instruction){
             printf("Illegal opcode %s\n",op);
             exit(1);
         case 'R':
-            if (strstr(s1,"$")==NULL||strstr(s2,"$")==NULL||strstr(s3,"$")==NULL){  // check registor has $
+            if (my_strstr(s1,"$")==NULL||my_strstr(s2,"$")==NULL||my_strstr(s3,"$")==NULL){  // check registor has $
                 printf("register no $");
                 exit(1);
             }
@@ -329,7 +391,7 @@ inst parser(char *instruction){
             ninst.s2 = (int)strtol(strtok(s3,"$"),NULL,10);  //$t
             return ninst;
         case 'I':
-            if (strstr(s1,"$")==NULL||strstr(s2,"$")==NULL){// check registor has $
+            if (my_strstr(s1,"$")==NULL||my_strstr(s2,"$")==NULL){// check registor has $
                 printf("register no $\n");
                 exit(1);
             }
@@ -342,7 +404,7 @@ inst parser(char *instruction){
             ninst.im = (int)strtol(strtok(s3,"$"),NULL,10);
             return ninst;
         case 'M':
-            if (strstr(s1,"$")==NULL||strstr(s3,"$")==NULL){// check registor has $
+            if (my_strstr(s1,"$")==NULL||my_strstr(s3,"$")==NULL){// check registor has $
                 printf("register no $\n");
                 exit(1);
             }
@@ -391,10 +453,12 @@ int regCheck(int sReg){									//sReg is the register number that is being chec
         switch(MEMWBlatch.operation.op){					//Needs to check against different registers for different instructions
             case add:										//add, sub, mul all produce to the d register
             case mul:
+
             case sub:
                 if(MEMWBlatch.operation.dest == sReg) return 1;
                 break;
             case addi:										//addi and lw produce to the s2 register
+
             case lw:
                 if(MEMWBlatch.operation.s2 == sReg) return 1;
                 break;
@@ -414,16 +478,20 @@ void ID(void) {
         return;
     }
     //enum opcode{add, sub, mul, addi, beq, lw, sw, haltSimulation,nop};
+
     if (((IFIDlatch.validBit == 1) && (IDEXlatch.validBit== 0))) {
         if(regCheck(IFIDlatch.operation.s1) ==1) return;
+
         switch (IFIDlatch.operation.op) {                        //Instruction cases are grouped for efficiency because certain instructions have the same actions
             case add:                                        //add
             case sub:                                        //sub
                 if (regCheck(IFIDlatch.operation.s2) == 1)
                     return;    //Checks s2 for add and sub, these two instructions have the same ID step
                 IDEXlatch = IFIDlatch;
-                IDEXlatch.operation.s1 =(int) mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
-                IDEXlatch.operation.s2 =(int) mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+
+                IDEXlatch.operation.s1 = mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+
                 EXdelay = n;                            //Set the EXdelay for normal operation delay
                 break;
 
@@ -431,8 +499,10 @@ void ID(void) {
                 if (regCheck(IFIDlatch.operation.s2) == 1)
                     return;    //Checks s2 for mul, it has a different ID step than add and sub
                 IDEXlatch = IFIDlatch;
-                IDEXlatch.operation.s1 = (int)mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
-                IDEXlatch.operation.s2 = (int)mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+
+                IDEXlatch.operation.s1 = mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+
                 EXdelay = m;                            //Set the EXdelay for multiplication delay (difference between add and sub for passing to EX)
                 break;
 
@@ -446,8 +516,10 @@ void ID(void) {
                     exit(1);                            //Halt the code if this error message has been printed
                 }
                 IDEXlatch = IFIDlatch;
-                IDEXlatch.operation.s1 = (int)mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
-                IDEXlatch.operation.s2 = (int)mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+
+                IDEXlatch.operation.s1 = mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+
                 Branchflag = 1;                        //If it reads a branch, mark branch pending
                 EXdelay = n;                            //Set the EXdelay for normal operation delay
                 break;
@@ -461,7 +533,10 @@ void ID(void) {
                     exit(1);                            //Halt the code if this error message has been printed
                 }
                 IDEXlatch = IFIDlatch;
-                IDEXlatch.operation.s1 = (int)mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+
+
+                IDEXlatch.operation.s1 = mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+
                 EXdelay = n;                            //Set the EXdelay for normal operation delay
                 break;
 
@@ -475,8 +550,10 @@ void ID(void) {
                     exit(1);                            //Halt the code if this error message has been printed
                 }
                 IDEXlatch = IFIDlatch;
-                IDEXlatch.operation.s1 = (int)mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
-                IDEXlatch.operation.s2 = (int)mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+
+                IDEXlatch.operation.s1 = mips_reg[IFIDlatch.operation.s1];    //loads s1 into the next latch
+                IDEXlatch.operation.s2 = mips_reg[IFIDlatch.operation.s2];    //loads s2 into the next latch
+
                 EXdelay = n;                            //Set the EXdelay for normal operation delay
                 break;
 
@@ -488,20 +565,26 @@ void ID(void) {
             default:
                 printf("Op Code not recognized: ID Stage \n");
                 exit(1);                                //If it doesn't decode one of the 7 possibilities there is an error, should be caught by the parser, but this is a backup
+
+
         }
 
         IFIDlatch = tempLatch;
         idUtil++;
     }
+
     return;
+
 }
 
 void EX(){
     if(EXMEMlatch.operation.op == haltSimulation){//If halt has passed through here, it just auto returns
         return;
     }
+
     else if(IDEXlatch.validBit == 1){						//Check previous latch to see if it can start it's operation
         if(((EXdelay == 1)&&(EXMEMlatch.validBit == 0))){ 	//Once the delay count down is finished and the latch is ready to receive, compute and push
+
             EXMEMlatch = IDEXlatch;
             switch(IDEXlatch.operation.op){
                 case add:									//add
@@ -530,6 +613,7 @@ void EX(){
                     break;
 
                 case haltSimulation:
+
                     return;
                 default:
                     printf("Op Code not recognized: EX stage \n");
@@ -544,7 +628,9 @@ void EX(){
             assert(EXdelay > -0); 						//Catch if this decreases too much
         }
     }
+
     return;
+
 }
 
 /*****************Support Functions***************/
@@ -557,6 +643,7 @@ void EX(){
 void IF(void){
     if(IFIDlatch.operation.op==haltSimulation){//if halt
         return;
+
     }
     if((IFIDlatch.validBit==0)&&(Branchflag==0)){
         if(iMem[IFPC].op==haltSimulation){
@@ -585,6 +672,7 @@ void IF(void){
             Branchflag=0;
          }
     return;
+
 }
 
 
@@ -596,7 +684,9 @@ void IF(void){
  * next stage, if LW or SW then wait c cycles;
  */
 void MEM(void){
+
     if((EXMEMlatch.validBit==1)&&(MEMWBlatch.validBit==0)){
+
         switch(EXMEMlatch.operation.op){
             default: // non-mem op
                 MEMWBlatch=EXMEMlatch;
@@ -610,9 +700,9 @@ void MEM(void){
                         printf("Data Alignment Error, %d not divisible by 4 \n", EXMEMlatch.EXresult);
                         exit(1);
                     }
-                    printf("=========\nsw place=%d\n",MEMWBlatch.EXresult);
+
                     MEMWBlatch.EXresult = dMem[EXMEMlatch.EXresult/4];
-                    printf("=========\nsw data=%d\n",MEMWBlatch.EXresult);
+
                     Mdelay=c;
                     EXMEMlatch=tempLatch;
                     memUtil++;
@@ -631,13 +721,10 @@ void MEM(void){
                         printf("Data Alignment Error, %d not divisible by 4 \n", EXMEMlatch.EXresult);
                         exit(1);
                     }
-                    printf("=========\nsw place=%d \n",(MEMWBlatch.operation.s2+EXMEMlatch.operation.im));
-                    int place =(MEMWBlatch.operation.s2+EXMEMlatch.operation.im);
-                    int Data=mips_reg[EXMEMlatch.operation.s2];
-                    printf("place=%d,Data=%d\n",place,Data);
-                    printf("DMEM=%d",dMem[8*sizeof(int)]);
-                    dMem[place]=Data;
-                   // printf("=========\nsw data=%d\n",MEMWBlatch.EXresult);
+
+
+                    dMem[EXMEMlatch.EXresult]=mips_reg[EXMEMlatch.operation.s2];
+
                     Mdelay=c;
                     EXMEMlatch=tempLatch;
                     memUtil++;
@@ -646,7 +733,9 @@ void MEM(void){
                     memUtil++;
                     assert(Mdelay>0);
                 }
+
                 return;
+
             case haltSimulation:
                 MEMWBlatch=EXMEMlatch;
                 MEMWBlatch.validBit=1;
@@ -667,7 +756,6 @@ void WB(inst wbOp, int data){
     }
     else if((wbOp.op==addi)||(wbOp.op==lw)){//storing to $t(s2)
         mips_reg[wbOp.s2]=data;
-        printf("\n---------op=%d, dest=%d, data=%d\n",(int)wbOp.op,wbOp.s2,data);
         wbUtil++;
     }
     return;
@@ -697,10 +785,12 @@ int main (int argc, char *argv[]){
     }
     printf("\n");
     if(argc==7){
-        if(strcmp("-s",argv[1])==0){
+
+        if(my_strcmp("-s",argv[1])==0){
             sim_mode=SINGLE;
         }
-        else if(strcmp("-b",argv[1])==0){
+        else if(my_strcmp("-b",argv[1])==0){
+
             sim_mode=BATCH;
         }
         else{
@@ -730,6 +820,7 @@ int main (int argc, char *argv[]){
         exit(1);
     }
 
+
     //initialize registers and program counter
 
         for (i=0;i<REG_NUM;i++){
@@ -747,6 +838,7 @@ int main (int argc, char *argv[]){
     for(int a; a<511; a++){
         dMem[a]=0;
     }
+
 
 //    mips_reg[0]=0;//cant change
 
@@ -775,7 +867,7 @@ int main (int argc, char *argv[]){
         iMem[i] = parser(instruction);
         if(iMem[i].op==haltSimulation)
             f=0;
-       printf( "---- %d--%d--%d--%d--%d\n",iMem[i].op,iMem[i].dest,iMem[i].im,iMem[i].s1,iMem[i].s2);
+
         i++;
     }
     //////////// main loop
@@ -789,7 +881,6 @@ int main (int argc, char *argv[]){
     wbUtil=0;
     Mdelay=c;
     IFdelay=c;
-
 
 
 
@@ -828,9 +919,6 @@ int main (int argc, char *argv[]){
 
         /**********************end*****************************/
 
-
-
-        ////////////////////////////////////////////////////////////
         /*********************code 2***************************/
         printf("cycle: %d ",sim_cycle);
         if(sim_mode==1){
