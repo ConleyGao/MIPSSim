@@ -186,118 +186,126 @@ char *regNumberConverter(char *instruction) {
     //*instruction = '\0';
     /* walk through other tokens */
     while (token != NULL) {
-        if ((my_strcmp(token, "$zero") == 0) || (my_strcmp(token, "$0") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$0");
-        } else if ((my_strcmp(token, "$at") == 0) || (my_strcmp(token, "$1") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$1");
-        } else if ((my_strcmp(token, "$v0") == 0) || (my_strcmp(token, "$2") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$2");
-        } else if ((my_strcmp(token, "$v1") == 0) || (my_strcmp(token, "$3") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$3");
-        } else if ((my_strcmp(token, "$a0") == 0) || (my_strcmp(token, "$4") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$4");
-        } else if ((my_strcmp(token, "$a1") == 0) || (my_strcmp(token, "$5") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$5");
-        } else if ((my_strcmp(token, "$a2") == 0) || (my_strcmp(token, "$6") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$6");
-        } else if ((my_strcmp(token, "$a3") == 0) || (my_strcmp(token, "$7") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$7");
-        } else if ((my_strcmp(token, "$t0") == 0) || (my_strcmp(token, "$8") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$8");
-        } else if ((my_strcmp(token, "$t1") == 0) || (my_strcmp(token, "$9") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$9");
-        } else if ((my_strcmp(token, "$t2") == 0) || (my_strcmp(token, "$10") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$10");
-        } else if ((my_strcmp(token, "$t3") == 0) || (my_strcmp(token, "$11") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$11");
-        } else if ((my_strcmp(token, "$t4") == 0) || (my_strcmp(token, "$12") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$12");
-        } else if ((my_strcmp(token, "$t5") == 0) || (my_strcmp(token, "$13") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$13");
-        } else if ((my_strcmp(token, "$t6") == 0) || (my_strcmp(token, "$14") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$14");
-        } else if ((my_strcmp(token, "$t7") == 0) || (my_strcmp(token, "$15") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$15");
-        } else if ((my_strcmp(token, "$s0") == 0) || (my_strcmp(token, "$16") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$16");
-        } else if ((my_strcmp(token, "$s1") == 0L) || (my_strcmp(token, "$17") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$17");
-        } else if ((my_strcmp(token, "$s2") == 0) || (my_strcmp(token, "$18") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$18");
-        } else if ((my_strcmp(token, "$s3") == 0) || (my_strcmp(token, "$19") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$19");
-        } else if ((my_strcmp(token, "$s4") == 0) || (my_strcmp(token, "$20") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$20");
-        } else if ((my_strcmp(token, "$s5") == 0) || (my_strcmp(token, "$21") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$21");
-        } else if ((my_strcmp(token, "$s6") == 0) || (my_strcmp(token, "$22") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$22");
-        } else if ((my_strcmp(token, "$s7") == 0) || (my_strcmp(token, "$23") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$23");
-        } else if ((my_strcmp(token, "$t8") == 0) || (my_strcmp(token, "$24") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$24");
-        } else if ((my_strcmp(token, "$t9") == 0) || (my_strcmp(token, "$25") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$25");
-        } else if ((my_strcmp(token, "$k0") == 0) || (my_strcmp(token, "$26") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$26");
-        } else if ((my_strcmp(token, "$k1") == 0) || (my_strcmp(token, "$27") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$27");
-        } else if ((my_strcmp(token, "$gp") == 0) || (my_strcmp(token, "$28") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$28");
-        } else if ((my_strcmp(token, "$sp") == 0) || (my_strcmp(token, "$29") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$29");
-        } else if ((my_strcmp(token, "$fp") == 0) || (my_strcmp(token, "$30") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$30");
-        } else if ((my_strcmp(token, "$ra") == 0) || (my_strcmp(token, "$31") == 0)) {
-            my_strcat(instruction, " ");
-            my_strcat(instruction, "$31");
-        } else if (atoi(token) > 31) {
-            if (my_strstr(token, "$") != NULL) {
-                printf("Register out of bounds, %d is higher than 31 \n", atoi(token));
-                exit(1);
-            } else {
+        if (my_strstr(token, "$")) {
+            if ((my_strcmp(token, "$zero") == 0) || (my_strcmp(token, "$0") == 0)) {
                 my_strcat(instruction, " ");
-                my_strcat(instruction, token);
+                my_strcat(instruction, "$0");
+            } else if ((my_strcmp(token, "$at") == 0) || (my_strcmp(token, "$1") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$1");
+            } else if ((my_strcmp(token, "$v0") == 0) || (my_strcmp(token, "$2") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$2");
+            } else if ((my_strcmp(token, "$v1") == 0) || (my_strcmp(token, "$3") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$3");
+            } else if ((my_strcmp(token, "$a0") == 0) || (my_strcmp(token, "$4") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$4");
+            } else if ((my_strcmp(token, "$a1") == 0) || (my_strcmp(token, "$5") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$5");
+            } else if ((my_strcmp(token, "$a2") == 0) || (my_strcmp(token, "$6") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$6");
+            } else if ((my_strcmp(token, "$a3") == 0) || (my_strcmp(token, "$7") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$7");
+            } else if ((my_strcmp(token, "$t0") == 0) || (my_strcmp(token, "$8") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$8");
+            } else if ((my_strcmp(token, "$t1") == 0) || (my_strcmp(token, "$9") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$9");
+            } else if ((my_strcmp(token, "$t2") == 0) || (my_strcmp(token, "$10") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$10");
+            } else if ((my_strcmp(token, "$t3") == 0) || (my_strcmp(token, "$11") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$11");
+            } else if ((my_strcmp(token, "$t4") == 0) || (my_strcmp(token, "$12") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$12");
+            } else if ((my_strcmp(token, "$t5") == 0) || (my_strcmp(token, "$13") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$13");
+            } else if ((my_strcmp(token, "$t6") == 0) || (my_strcmp(token, "$14") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$14");
+            } else if ((my_strcmp(token, "$t7") == 0) || (my_strcmp(token, "$15") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$15");
+            } else if ((my_strcmp(token, "$s0") == 0) || (my_strcmp(token, "$16") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$16");
+            } else if ((my_strcmp(token, "$s1") == 0L) || (my_strcmp(token, "$17") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$17");
+            } else if ((my_strcmp(token, "$s2") == 0) || (my_strcmp(token, "$18") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$18");
+            } else if ((my_strcmp(token, "$s3") == 0) || (my_strcmp(token, "$19") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$19");
+            } else if ((my_strcmp(token, "$s4") == 0) || (my_strcmp(token, "$20") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$20");
+            } else if ((my_strcmp(token, "$s5") == 0) || (my_strcmp(token, "$21") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$21");
+            } else if ((my_strcmp(token, "$s6") == 0) || (my_strcmp(token, "$22") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$22");
+            } else if ((my_strcmp(token, "$s7") == 0) || (my_strcmp(token, "$23") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$23");
+            } else if ((my_strcmp(token, "$t8") == 0) || (my_strcmp(token, "$24") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$24");
+            } else if ((my_strcmp(token, "$t9") == 0) || (my_strcmp(token, "$25") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$25");
+            } else if ((my_strcmp(token, "$k0") == 0) || (my_strcmp(token, "$26") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$26");
+            } else if ((my_strcmp(token, "$k1") == 0) || (my_strcmp(token, "$27") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$27");
+            } else if ((my_strcmp(token, "$gp") == 0) || (my_strcmp(token, "$28") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$28");
+            } else if ((my_strcmp(token, "$sp") == 0) || (my_strcmp(token, "$29") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$29");
+            } else if ((my_strcmp(token, "$fp") == 0) || (my_strcmp(token, "$30") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$30");
+            } else if ((my_strcmp(token, "$ra") == 0) || (my_strcmp(token, "$31") == 0)) {
+                my_strcat(instruction, " ");
+                my_strcat(instruction, "$31");
+            } else {
+                printf("registor not recognized");
+                exit(1);
+
             }
-        } else {
+        } else {/*
+            /*if (atoi(token) > 31) {*/
+            /*if (my_strstr(token, "$") != NULL) {
+                printf("Register out of bounds, %d is higher than 31 \n", atoi(token));
+                exit(1);*/
+            // } else {*/
             my_strcat(instruction, " ");
             my_strcat(instruction, token);
         }
+        /* } else {
+             my_strcat(instruction, " ");
+             my_strcat(instruction, token);
+         }*/
 
 
         token = strtok(NULL, " \r\n");
     }
+
     free(ist);
     return instruction;
 }
@@ -364,9 +372,9 @@ inst parser(char *instruction) {
             ninst.dest = (int) strtol(strtok(s1, "$"), NULL, 10); //dest
             ninst.s1 = (int) strtol(strtok(s2, "$"), NULL, 10);   //%s
             ninst.s2 = (int) strtol(strtok(s3, "$"), NULL, 10);  //$t
-            if(!isdigit(ninst.s1)||!isdigit(ninst.s2)||!isdigit(ninst.dest)){
+           /* if(!isdigit(ninst.s1)||!isdigit(ninst.s2)||!isdigit(ninst.dest)){
                 exit(11);
-            }
+            }*/
             return ninst;
         case 'I':
             if (my_strstr(s1, "$") == NULL || my_strstr(s2, "$") == NULL) {// check registor has $
